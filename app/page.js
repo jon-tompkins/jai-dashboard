@@ -703,8 +703,8 @@ export default function Dashboard() {
           <div style={{...styles.card, gridColumn: 'span 2'}}>
             <div style={styles.cardTitle}>📈 Progress Over Time</div>
             {fitness?.liftHistory && (() => {
-              // Collect all data series - filter to 2025+
-              const filterDate = (d) => new Date(d.date) >= new Date('2025-01-01');
+              // Collect all data series - filter to 2026+
+              const filterDate = (d) => new Date(d.date) >= new Date('2026-01-01');
               
               const liftSeries = Object.entries(fitness.liftHistory).map(([name, data]) => ({
                 name, data: data.filter(filterDate).map(d => ({ date: d.date, value: d.tracking1RM })),
