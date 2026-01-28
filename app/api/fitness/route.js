@@ -13,7 +13,7 @@ const GOALS = {
     { name: 'Shoulder Press', current: 175, tracking: null, goal: 225, color: '#a371f7' },
     { name: 'Bench Press', current: 265, tracking: 242, goal: 315, color: '#58a6ff' },
     { name: 'Squat', current: 295, tracking: 306, goal: 405, color: '#3fb950' },
-    { name: 'Deadlift', current: 375, tracking: null, goal: 495, color: '#f85149' }
+    { name: 'Deadlift', current: 375, tracking: 383, goal: 495, color: '#f85149' }
   ],
   other: [
     { name: '5k Time', current: 'TBD', goal: 'Sub-25 min' },
@@ -37,7 +37,8 @@ const LIFT_HISTORY = {
   ],
   'Deadlift': [
     { date: '2026-01-12', weight: 315, reps: 5, tracking1RM: calcTracking1RM(315, 5) },
-    { date: '2026-01-19', weight: 335, reps: 5, tracking1RM: calcTracking1RM(335, 5) }
+    { date: '2026-01-19', weight: 335, reps: 5, tracking1RM: calcTracking1RM(335, 5) },
+    { date: '2026-01-28', weight: 365, reps: 5, tracking1RM: calcTracking1RM(365, 5) }
   ],
   'Shoulder Press': [
     { date: '2026-01-11', weight: 135, reps: 5, tracking1RM: calcTracking1RM(135, 5) },
@@ -47,21 +48,23 @@ const LIFT_HISTORY = {
 
 const RECENT_WORKOUTS = [
   {
+    date: '2026-01-28',
+    type: 'lower',
+    description: 'Deadlift 135x5, 225x5, 315x5, 345x5, 365x5. Bent over row 2x10@135. Zercher RDL 1x8@135. KB kickstand DL 2 sets w/2x24kg. Reverse 2KB lunge offset w/24kg. 10 unbroken pull-ups. Ab wheel.',
+    notes: 'Good deadlift session - first tracked DL.',
+    topSet: { lift: 'Deadlift', weight: 365, reps: 5, hit: true, tracking1RM: calcTracking1RM(365, 5) }
+  },
+  {
     date: '2026-01-27',
-    type: 'Chest / Bench',
-    weight: 186,
-    exercises: [
-      { name: 'Bench', sets: [{ weight: 135, reps: 5 }, { weight: 185, reps: 5 }, { weight: 225, reps: 5 }, { weight: 245, reps: 3 }] }
-    ],
+    type: 'upper',
+    description: 'Bench 135x5, 185x5, 225x5, 245x3',
     notes: 'Felt weak going in. Missed 5 at 245. Stay at 245 next session.',
     topSet: { lift: 'Bench', weight: 245, reps: 3, hit: false, tracking1RM: calcTracking1RM(245, 3) }
   },
   {
     date: '2026-01-26',
-    type: 'Squats',
-    exercises: [
-      { name: 'Squat', sets: [{ weight: 135, reps: 5 }, { weight: 185, reps: 5 }, { weight: 225, reps: 5 }, { weight: 275, reps: 5 }, { weight: 295, reps: 5 }] }
-    ],
+    type: 'lower',
+    description: 'Squat 135x5, 185x5, 225x5, 275x5, 295x5',
     notes: 'All reps complete. Go to 305 next.',
     topSet: { lift: 'Squat', weight: 295, reps: 5, hit: true, tracking1RM: calcTracking1RM(295, 5) }
   }
