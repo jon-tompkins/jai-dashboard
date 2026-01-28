@@ -110,6 +110,17 @@ export default function Dashboard() {
   const [selectedAsset, setSelectedAsset] = useState(null);
   const [assetTarget, setAssetTarget] = useState('');
   const [assetStop, setAssetStop] = useState('');
+  const [fitness, setFitness] = useState(null);
+
+  useEffect(() => { fetchFitness(); }, []);
+
+  async function fetchFitness() {
+    try {
+      const res = await fetch('/api/fitness');
+      const data = await res.json();
+      setFitness(data);
+    } catch (e) { console.error(e); }
+  }
 
   useEffect(() => { 
     fetchPortfolio(); 
@@ -222,7 +233,7 @@ export default function Dashboard() {
       </div>
 
       <div style={styles.tabs}>
-        {['portfolio', 'trades', 'assets', 'reports'].map(t => (
+        {['portfolio', 'trades', 'assets', 'reports', 'fitness'].map(t => (
           <div key={t} style={tab === t ? styles.tabActive : styles.tab} onClick={() => setTab(t)}>
             {t.charAt(0).toUpperCase() + t.slice(1)}
           </div>
@@ -680,6 +691,91 @@ export default function Dashboard() {
           </div>
         );
       })()}
+
+      {tab === 'fitness' && (
+        <div style={styles.grid}>
+          {/* Strength Goals */}
+          <div style={styles.card}>
+            <div style={styles.cardTitle}>🏋️ Strength Goals</div>
+            <table style={styles.table}>
+              <thead>
+                <tr>
+                  <th style={styles.th}>Lift</th>
+                  <th style={styles.th}>Current</th>
+                  <th style={styles.th}>Goal</th>
+                  <th style={styles.th}>Progress</th>
+                </tr>
+              </thead>
+              <tbody>
+                {fitness?.goals?.lifts?.map(l => {
+                  const current = l.tracking || l.current;
+                  const pct = Math.round((current / l.goal) * 100);
+                  return (
+                    <tr key={l.name}>
+                      <td style={styles.td}><strong>{l.name}</strong></td>
+                      <td style={styles.td}>{current} lbs {l.tracking && <span style={{ color: '#8b949e', fontSize: '11px' }}>(tracking)</span>}</td>
+                      <td style={styles.td}>{l.goal} lbs</td>
+                      <td style={styles.td}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div style={{ width: '80px', height: '8px', background: '#21262d', borderRadius: '4px', overflow: 'hidden' }}>
+                            <div style={{ width: `${Math.min(pct, 100)}%`, height: '100%', background: pct >= 100 ? '#3fb950' : '#58a6ff' }} />
+                          </div>
+                          <span style={{ fontSize: '12px', color: '#8b949e' }}>{pct}%</span>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Other Goals */}
+          <div style={styles.card}>
+            <div style={styles.cardTitle}>🎯 Other Goals</div>
+            <table style={styles.table}>
+              <tbody>
+                {fitness?.goals?.other?.map(g => (
+                  <tr key={g.name}>
+                    <td style={styles.td}><strong>{g.name}</strong></td>
+                    <td style={styles.td}>{g.current} {g.unit || ''}</td>
+                    <td style={styles.td}>→ {g.goal} {g.unit || ''}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div style={{ marginTop: '16px', padding: '12px', background: '#0d1117', borderRadius: '6px', fontSize: '13px' }}>
+              <div style={{ color: '#8b949e', marginBottom: '8px' }}>Schedule</div>
+              <div>{fitness?.schedule?.daysPerWeek} days/week • {fitness?.schedule?.minutesPerDay} min/day</div>
+              <div style={{ color: '#8b949e', marginTop: '4px' }}>1 class + {fitness?.schedule?.customDays} custom days</div>
+            </div>
+          </div>
+
+          {/* Recent Workouts */}
+          <div style={{...styles.card, gridColumn: 'span 2'}}>
+            <div style={styles.cardTitle}>📋 Recent Workouts</div>
+            {fitness?.recentWorkouts?.map(w => (
+              <div key={w.date} style={{ padding: '12px', margin: '8px 0', background: '#0d1117', borderRadius: '6px', borderLeft: `3px solid ${w.topSet?.hit ? '#3fb950' : '#f85149'}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <div>
+                    <strong>{w.type}</strong>
+                    <span style={{ color: '#8b949e', marginLeft: '12px' }}>{w.date}</span>
+                  </div>
+                  {w.weight && <span style={{ color: '#8b949e' }}>{w.weight} lbs</span>}
+                </div>
+                {w.topSet && (
+                  <div style={{ marginBottom: '8px' }}>
+                    <span style={{...styles.tag, background: w.topSet.hit ? '#238636' : '#da3633'}}>
+                      Top: {w.topSet.lift} {w.topSet.weight} x {w.topSet.reps} {w.topSet.hit ? '✓' : '✗'}
+                    </span>
+                  </div>
+                )}
+                {w.notes && <div style={{ fontSize: '13px', color: '#8b949e' }}>{w.notes}</div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
