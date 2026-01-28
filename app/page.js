@@ -703,22 +703,26 @@ export default function Dashboard() {
           <div style={{...styles.card, gridColumn: 'span 2'}}>
             <div style={styles.cardTitle}>📈 Progress Over Time</div>
             {fitness?.liftHistory && (() => {
-              // Collect all data series
+              // Collect all data series - filter to 2025+
+              const filterDate = (d) => new Date(d.date) >= new Date('2025-01-01');
+              
               const liftSeries = Object.entries(fitness.liftHistory).map(([name, data]) => ({
-                name, data: data.map(d => ({ date: d.date, value: d.tracking1RM })),
+                name, data: data.filter(filterDate).map(d => ({ date: d.date, value: d.tracking1RM })),
                 color: fitness.goals.lifts.find(g => g.name === name)?.color || '#8b949e',
                 axis: 'left', unit: 'lbs', goal: fitness.goals.lifts.find(g => g.name === name)?.goal
-              }));
-              const weightSeries = fitness.weightHistory?.length > 0 ? [{
-                name: 'Weight', data: fitness.weightHistory.map(d => ({ date: d.date, value: d.weight })),
-                color: '#d29922', axis: 'right', unit: 'lbs', goal: 178
+              })).filter(s => s.data.length > 0);
+              
+              const weightSeries = fitness.weightHistory?.filter(filterDate).length > 0 ? [{
+                name: 'Weight', data: fitness.weightHistory.filter(filterDate).map(d => ({ date: d.date, value: d.weight })),
+                color: '#d29922', axis: 'left', unit: 'lbs', goal: 178
               }] : [];
-              const fiveKSeries = fitness.fiveKHistory?.length > 0 ? [{
-                name: '5k Time', data: fitness.fiveKHistory.map(d => ({ date: d.date, value: d.minutes })),
+              
+              const runSeries = fitness.runHistory?.filter(filterDate).length > 0 ? [{
+                name: '5k Est', data: fitness.runHistory.filter(filterDate).map(d => ({ date: d.date, value: d.est5k })),
                 color: '#f778ba', axis: 'right', unit: 'min', goal: 25
               }] : [];
               
-              const allSeries = [...liftSeries, ...weightSeries, ...fiveKSeries];
+              const allSeries = [...liftSeries, ...weightSeries, ...runSeries];
               const visibleSeries = allSeries.filter(s => chartToggles[s.name] !== false);
               
               const leftSeries = visibleSeries.filter(s => s.axis === 'left');
@@ -766,7 +770,7 @@ export default function Dashboard() {
                       const y = padding + pct * (height - padding * 2);
                       const val = Math.round((rightMax - pct * (rightMax - rightMin)) * 10) / 10;
                       return (
-                        <text key={'right-' + pct} x={width - rightPadding + 5} y={y + 4} fill="#d29922" fontSize="10" textAnchor="start">{val}</text>
+                        <text key={'right-' + pct} x={width - rightPadding + 5} y={y + 4} fill="#f778ba" fontSize="10" textAnchor="start">{val}</text>
                       );
                     })}
                     {/* Goal lines */}

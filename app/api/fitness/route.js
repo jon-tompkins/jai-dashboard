@@ -67,7 +67,7 @@ const RECENT_WORKOUTS = [
   }
 ];
 
-// Body weight history
+// Body weight history (LEFT axis)
 const WEIGHT_HISTORY = [
   { date: '2026-01-01', weight: 188 },
   { date: '2026-01-08', weight: 187 },
@@ -76,9 +76,12 @@ const WEIGHT_HISTORY = [
   { date: '2026-01-27', weight: 186 }
 ];
 
-// 5k time history (in minutes) - add entries as runs are logged
-const FIVEK_HISTORY = [
-  // { date: '2026-01-15', minutes: 27.5 }
+// Run history (RIGHT axis - estimated 5k time in minutes)
+// Calculated from pace: (pace_min/mi * 3.1) 
+const RUN_HISTORY = [
+  { date: '2026-01-09', distance: 3.22, time: '27:12', pace: '8:27', est5k: 26.2 },
+  { date: '2026-01-13', distance: 3.26, time: '31:57', pace: '9:47', est5k: 30.3 },
+  { date: '2026-01-23', distance: 3.20, time: '26:51', pace: '8:23', est5k: 26.0 }
 ];
 
 export async function GET() {
@@ -87,7 +90,7 @@ export async function GET() {
     recentWorkouts: RECENT_WORKOUTS,
     liftHistory: LIFT_HISTORY,
     weightHistory: WEIGHT_HISTORY,
-    fiveKHistory: FIVEK_HISTORY,
+    runHistory: RUN_HISTORY,
     schedule: {
       daysPerWeek: 5,
       minutesPerDay: 40,
