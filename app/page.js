@@ -112,8 +112,11 @@ export default function Dashboard() {
   const [assetStop, setAssetStop] = useState('');
   const [fitness, setFitness] = useState(null);
   const [chartToggles, setChartToggles] = useState({});
+  const [workoutLogs, setWorkoutLogs] = useState({ metrics: [], logs: [] });
+  const [showWorkoutForm, setShowWorkoutForm] = useState(false);
+  const [workoutForm, setWorkoutForm] = useState({ date: new Date().toISOString().split('T')[0], type: 'upper', description: '', body_weight: '', duration_min: '', notes: '', trackedMetrics: [] });
 
-  useEffect(() => { fetchFitness(); }, []);
+  useEffect(() => { fetchFitness(); fetchWorkoutLogs(); }, []);
 
   function toggleChart(key) {
     setChartToggles(prev => ({ ...prev, [key]: !prev[key] }));
@@ -125,6 +128,44 @@ export default function Dashboard() {
       const data = await res.json();
       setFitness(data);
     } catch (e) { console.error(e); }
+  }
+
+  async function fetchWorkoutLogs() {
+    try {
+      const res = await fetch('/api/workouts');
+      const data = await res.json();
+      setWorkoutLogs(data);
+    } catch (e) { console.error(e); }
+  }
+
+  async function saveWorkout() {
+    try {
+      await fetch('/api/workouts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(workoutForm)
+      });
+      setShowWorkoutForm(false);
+      setWorkoutForm({ date: new Date().toISOString().split('T')[0], type: 'upper', description: '', body_weight: '', duration_min: '', notes: '', trackedMetrics: [] });
+      fetchWorkoutLogs();
+      fetchFitness();
+    } catch (e) { console.error(e); }
+  }
+
+  function toggleTrackedMetric(metric) {
+    const existing = workoutForm.trackedMetrics.find(m => m.metric_id === metric.id);
+    if (existing) {
+      setWorkoutForm({ ...workoutForm, trackedMetrics: workoutForm.trackedMetrics.filter(m => m.metric_id !== metric.id) });
+    } else {
+      setWorkoutForm({ ...workoutForm, trackedMetrics: [...workoutForm.trackedMetrics, { metric_id: metric.id, name: metric.name, calc_type: metric.calc_type, value: '', reps: '', sets: 1 }] });
+    }
+  }
+
+  function updateTrackedMetric(metricId, field, value) {
+    setWorkoutForm({
+      ...workoutForm,
+      trackedMetrics: workoutForm.trackedMetrics.map(m => m.metric_id === metricId ? { ...m, [field]: value } : m)
+    });
   }
 
   useEffect(() => { 
@@ -879,27 +920,119 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Recent Workouts - Full Width at Bottom */}
+          {/* Workout Log - Full Width at Bottom */}
           <div style={{...styles.card, gridColumn: '1 / -1'}}>
-            <div style={styles.cardTitle}>📋 Recent Workouts</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={styles.cardTitle}>📋 Workout Log</div>
+              <button style={{...styles.btn, background: '#238636'}} onClick={() => setShowWorkoutForm(!showWorkoutForm)}>
+                {showWorkoutForm ? '✕ Cancel' : '+ Log Workout'}
+              </button>
+            </div>
+
+            {/* Workout Form */}
+            {showWorkoutForm && (
+              <div style={{ padding: '16px', background: '#0d1117', borderRadius: '8px', marginBottom: '16px', border: '1px solid #30363d' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px', marginBottom: '12px' }}>
+                  <div>
+                    <label style={{ fontSize: '12px', color: '#8b949e', display: 'block', marginBottom: '4px' }}>Date</label>
+                    <input type="date" value={workoutForm.date} onChange={e => setWorkoutForm({...workoutForm, date: e.target.value})} style={{ width: '100%', padding: '8px', background: '#161b22', border: '1px solid #30363d', borderRadius: '6px', color: '#e6edf3' }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '12px', color: '#8b949e', display: 'block', marginBottom: '4px' }}>Type</label>
+                    <select value={workoutForm.type} onChange={e => setWorkoutForm({...workoutForm, type: e.target.value})} style={{ width: '100%', padding: '8px', background: '#161b22', border: '1px solid #30363d', borderRadius: '6px', color: '#e6edf3' }}>
+                      <option value="upper">Upper</option>
+                      <option value="lower">Lower</option>
+                      <option value="full">Full Body</option>
+                      <option value="run">Run</option>
+                      <option value="conditioning">Conditioning</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '12px', color: '#8b949e', display: 'block', marginBottom: '4px' }}>Body Weight</label>
+                    <input type="number" placeholder="lbs" value={workoutForm.body_weight} onChange={e => setWorkoutForm({...workoutForm, body_weight: e.target.value})} style={{ width: '100%', padding: '8px', background: '#161b22', border: '1px solid #30363d', borderRadius: '6px', color: '#e6edf3' }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '12px', color: '#8b949e', display: 'block', marginBottom: '4px' }}>Duration</label>
+                    <input type="number" placeholder="min" value={workoutForm.duration_min} onChange={e => setWorkoutForm({...workoutForm, duration_min: e.target.value})} style={{ width: '100%', padding: '8px', background: '#161b22', border: '1px solid #30363d', borderRadius: '6px', color: '#e6edf3' }} />
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ fontSize: '12px', color: '#8b949e', display: 'block', marginBottom: '4px' }}>Description</label>
+                  <textarea value={workoutForm.description} onChange={e => setWorkoutForm({...workoutForm, description: e.target.value})} placeholder="What did you do? e.g. Bench 135x5, 185x5, 225x5, 245x3" rows={3} style={{ width: '100%', padding: '8px', background: '#161b22', border: '1px solid #30363d', borderRadius: '6px', color: '#e6edf3', resize: 'vertical' }} />
+                </div>
+
+                {/* Tracked Metrics */}
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ fontSize: '12px', color: '#8b949e', display: 'block', marginBottom: '8px' }}>Tracked Lifts</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
+                    {workoutLogs.metrics?.map(m => {
+                      const isSelected = workoutForm.trackedMetrics.some(tm => tm.metric_id === m.id);
+                      return (
+                        <button key={m.id} onClick={() => toggleTrackedMetric(m)} style={{...styles.btn, background: isSelected ? '#238636' : '#21262d', border: isSelected ? '1px solid #238636' : '1px solid #30363d'}}>
+                          {isSelected ? '✓ ' : ''}{m.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {workoutForm.trackedMetrics.map(tm => (
+                    <div key={tm.metric_id} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px', padding: '8px', background: '#161b22', borderRadius: '6px' }}>
+                      <span style={{ minWidth: '100px', fontWeight: '500' }}>{tm.name}</span>
+                      {tm.calc_type === 'weight_reps' && (
+                        <>
+                          <input type="number" placeholder="Weight" value={tm.value} onChange={e => updateTrackedMetric(tm.metric_id, 'value', e.target.value)} style={{ width: '80px', padding: '6px', background: '#0d1117', border: '1px solid #30363d', borderRadius: '4px', color: '#e6edf3' }} />
+                          <span style={{ color: '#8b949e' }}>×</span>
+                          <input type="number" placeholder="Reps" value={tm.reps} onChange={e => updateTrackedMetric(tm.metric_id, 'reps', e.target.value)} style={{ width: '60px', padding: '6px', background: '#0d1117', border: '1px solid #30363d', borderRadius: '4px', color: '#e6edf3' }} />
+                          {tm.value && tm.reps && (
+                            <span style={{ color: '#3fb950', fontSize: '12px' }}>→ {Math.round(tm.value * (1 + tm.reps / 30) * 0.9)} tracking</span>
+                          )}
+                        </>
+                      )}
+                      {tm.calc_type === 'reps_only' && (
+                        <input type="number" placeholder="Reps" value={tm.value} onChange={e => updateTrackedMetric(tm.metric_id, 'value', e.target.value)} style={{ width: '80px', padding: '6px', background: '#0d1117', border: '1px solid #30363d', borderRadius: '4px', color: '#e6edf3' }} />
+                      )}
+                      {tm.calc_type === 'time' && (
+                        <input type="number" placeholder="Minutes" value={tm.value} onChange={e => updateTrackedMetric(tm.metric_id, 'value', e.target.value)} style={{ width: '80px', padding: '6px', background: '#0d1117', border: '1px solid #30363d', borderRadius: '4px', color: '#e6edf3' }} />
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ fontSize: '12px', color: '#8b949e', display: 'block', marginBottom: '4px' }}>Notes</label>
+                  <input type="text" value={workoutForm.notes} onChange={e => setWorkoutForm({...workoutForm, notes: e.target.value})} placeholder="How did it feel? Any adjustments?" style={{ width: '100%', padding: '8px', background: '#161b22', border: '1px solid #30363d', borderRadius: '6px', color: '#e6edf3' }} />
+                </div>
+
+                <button style={{...styles.btn, background: '#238636', padding: '10px 20px'}} onClick={saveWorkout}>Save Workout</button>
+              </div>
+            )}
+
+            {/* Workout List */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '12px' }}>
-              {fitness?.recentWorkouts?.map(w => (
-                <div key={w.date} style={{ padding: '12px', background: '#0d1117', borderRadius: '6px', borderLeft: `3px solid ${w.topSet?.hit ? '#3fb950' : '#f85149'}` }}>
+              {(workoutLogs.logs?.length > 0 ? workoutLogs.logs : fitness?.recentWorkouts)?.map((w, i) => (
+                <div key={w.id || w.date + i} style={{ padding: '12px', background: '#0d1117', borderRadius: '6px', borderLeft: `3px solid ${w.type === 'run' ? '#f778ba' : w.type === 'upper' ? '#58a6ff' : w.type === 'lower' ? '#3fb950' : '#d29922'}` }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                     <div>
-                      <strong>{w.type}</strong>
-                      <span style={{ color: '#8b949e', marginLeft: '12px' }}>{w.date}</span>
+                      <span style={{...styles.tag, background: w.type === 'run' ? '#f778ba' : w.type === 'upper' ? '#58a6ff' : w.type === 'lower' ? '#3fb950' : '#d29922', marginRight: '8px'}}>{w.type}</span>
+                      <span style={{ color: '#8b949e' }}>{w.date}</span>
                     </div>
-                    {w.weight && <span style={{ color: '#8b949e' }}>{w.weight} lbs</span>}
+                    {w.body_weight && <span style={{ color: '#8b949e' }}>{w.body_weight} lbs</span>}
                   </div>
+                  {w.description && <div style={{ fontSize: '13px', marginBottom: '8px' }}>{w.description}</div>}
+                  {w.workout_metrics?.map(wm => (
+                    <span key={wm.id} style={{...styles.tag, background: '#238636', marginRight: '4px', marginBottom: '4px'}}>
+                      {workoutLogs.metrics?.find(m => m.id === wm.metric_id)?.name}: {wm.value}{wm.reps ? ` × ${wm.reps}` : ''} {wm.calculated_max ? `→ ${wm.calculated_max}` : ''}
+                    </span>
+                  ))}
                   {w.topSet && (
                     <div style={{ marginBottom: '8px' }}>
                       <span style={{...styles.tag, background: w.topSet.hit ? '#238636' : '#da3633'}}>
-                        Top: {w.topSet.lift} {w.topSet.weight} x {w.topSet.reps} → {w.topSet.tracking1RM} lbs {w.topSet.hit ? '✓' : '✗'}
+                        {w.topSet.lift} {w.topSet.weight} × {w.topSet.reps} → {w.topSet.tracking1RM} {w.topSet.hit ? '✓' : '✗'}
                       </span>
                     </div>
                   )}
-                  {w.notes && <div style={{ fontSize: '13px', color: '#8b949e' }}>{w.notes}</div>}
+                  {w.notes && <div style={{ fontSize: '12px', color: '#8b949e', marginTop: '4px' }}>{w.notes}</div>}
                 </div>
               ))}
             </div>
