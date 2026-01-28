@@ -76,12 +76,18 @@ const WEIGHT_HISTORY = [
   { date: '2026-01-27', weight: 186 }
 ];
 
+// 5k time history (in minutes) - add entries as runs are logged
+const FIVEK_HISTORY = [
+  // { date: '2026-01-15', minutes: 27.5 }
+];
+
 export async function GET() {
   return Response.json({
     goals: GOALS,
     recentWorkouts: RECENT_WORKOUTS,
     liftHistory: LIFT_HISTORY,
     weightHistory: WEIGHT_HISTORY,
+    fiveKHistory: FIVEK_HISTORY,
     schedule: {
       daysPerWeek: 5,
       minutesPerDay: 40,

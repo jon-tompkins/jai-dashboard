@@ -111,8 +111,13 @@ export default function Dashboard() {
   const [assetTarget, setAssetTarget] = useState('');
   const [assetStop, setAssetStop] = useState('');
   const [fitness, setFitness] = useState(null);
+  const [chartToggles, setChartToggles] = useState({});
 
   useEffect(() => { fetchFitness(); }, []);
+
+  function toggleChart(key) {
+    setChartToggles(prev => ({ ...prev, [key]: !prev[key] }));
+  }
 
   async function fetchFitness() {
     try {
@@ -696,68 +701,117 @@ export default function Dashboard() {
         <div style={styles.grid}>
           {/* Lift Progress Chart */}
           <div style={{...styles.card, gridColumn: 'span 2'}}>
-            <div style={styles.cardTitle}>📈 Tracking 1RM Over Time</div>
+            <div style={styles.cardTitle}>📈 Progress Over Time</div>
             {fitness?.liftHistory && (() => {
-              const allLifts = Object.keys(fitness.liftHistory);
-              const allDates = [...new Set(allLifts.flatMap(l => fitness.liftHistory[l].map(d => d.date)))].sort();
+              // Collect all data series
+              const liftSeries = Object.entries(fitness.liftHistory).map(([name, data]) => ({
+                name, data: data.map(d => ({ date: d.date, value: d.tracking1RM })),
+                color: fitness.goals.lifts.find(g => g.name === name)?.color || '#8b949e',
+                axis: 'left', unit: 'lbs', goal: fitness.goals.lifts.find(g => g.name === name)?.goal
+              }));
+              const weightSeries = fitness.weightHistory?.length > 0 ? [{
+                name: 'Weight', data: fitness.weightHistory.map(d => ({ date: d.date, value: d.weight })),
+                color: '#d29922', axis: 'right', unit: 'lbs', goal: 178
+              }] : [];
+              const fiveKSeries = fitness.fiveKHistory?.length > 0 ? [{
+                name: '5k Time', data: fitness.fiveKHistory.map(d => ({ date: d.date, value: d.minutes })),
+                color: '#f778ba', axis: 'right', unit: 'min', goal: 25
+              }] : [];
+              
+              const allSeries = [...liftSeries, ...weightSeries, ...fiveKSeries];
+              const visibleSeries = allSeries.filter(s => chartToggles[s.name] !== false);
+              
+              const leftSeries = visibleSeries.filter(s => s.axis === 'left');
+              const rightSeries = visibleSeries.filter(s => s.axis === 'right');
+              
+              const allDates = [...new Set(visibleSeries.flatMap(s => s.data.map(d => d.date)))].sort();
+              if (allDates.length === 0) return <p style={{ color: '#8b949e' }}>No data to display</p>;
+              
               const minDate = allDates[0];
               const maxDate = allDates[allDates.length - 1];
-              const allValues = allLifts.flatMap(l => fitness.liftHistory[l].map(d => d.tracking1RM));
-              const minVal = Math.min(...allValues) - 20;
-              const maxVal = Math.max(...allValues) + 20;
-              const width = 600, height = 250, padding = 40;
               
-              const xScale = (date) => padding + ((new Date(date) - new Date(minDate)) / (new Date(maxDate) - new Date(minDate))) * (width - padding * 2);
-              const yScale = (val) => height - padding - ((val - minVal) / (maxVal - minVal)) * (height - padding * 2);
+              const leftValues = leftSeries.flatMap(s => s.data.map(d => d.value));
+              const rightValues = rightSeries.flatMap(s => s.data.map(d => d.value));
+              
+              const leftMin = leftValues.length ? Math.min(...leftValues) - 20 : 0;
+              const leftMax = leftValues.length ? Math.max(...leftValues) + 20 : 100;
+              const rightMin = rightValues.length ? Math.min(...rightValues) - 5 : 0;
+              const rightMax = rightValues.length ? Math.max(...rightValues) + 5 : 100;
+              
+              const width = 700, height = 280, padding = 50, rightPadding = rightSeries.length ? 50 : 20;
+              
+              const xScale = (date) => {
+                if (minDate === maxDate) return width / 2;
+                return padding + ((new Date(date) - new Date(minDate)) / (new Date(maxDate) - new Date(minDate))) * (width - padding - rightPadding);
+              };
+              const yScaleLeft = (val) => height - padding - ((val - leftMin) / (leftMax - leftMin || 1)) * (height - padding * 2);
+              const yScaleRight = (val) => height - padding - ((val - rightMin) / (rightMax - rightMin || 1)) * (height - padding * 2);
               
               return (
                 <div style={{ overflowX: 'auto' }}>
                   <svg width={width} height={height} style={{ background: '#0d1117', borderRadius: '6px' }}>
-                    {/* Grid lines */}
-                    {[0, 0.25, 0.5, 0.75, 1].map(pct => {
+                    {/* Left axis grid */}
+                    {leftSeries.length > 0 && [0, 0.25, 0.5, 0.75, 1].map(pct => {
                       const y = padding + pct * (height - padding * 2);
-                      const val = Math.round(maxVal - pct * (maxVal - minVal));
+                      const val = Math.round(leftMax - pct * (leftMax - leftMin));
                       return (
-                        <g key={pct}>
-                          <line x1={padding} y1={y} x2={width - padding} y2={y} stroke="#21262d" />
+                        <g key={'left-' + pct}>
+                          <line x1={padding} y1={y} x2={width - rightPadding} y2={y} stroke="#21262d" />
                           <text x={padding - 5} y={y + 4} fill="#8b949e" fontSize="10" textAnchor="end">{val}</text>
                         </g>
                       );
                     })}
-                    {/* Goal lines */}
-                    {fitness.goals.lifts.map(g => g.goal <= maxVal && g.goal >= minVal && (
-                      <line key={g.name + '-goal'} x1={padding} y1={yScale(g.goal)} x2={width - padding} y2={yScale(g.goal)} stroke={g.color} strokeDasharray="4,4" strokeOpacity="0.4" />
-                    ))}
-                    {/* Lines for each lift */}
-                    {allLifts.map(lift => {
-                      const data = fitness.liftHistory[lift];
-                      const color = fitness.goals.lifts.find(g => g.name === lift)?.color || '#8b949e';
-                      const points = data.map(d => `${xScale(d.date)},${yScale(d.tracking1RM)}`).join(' ');
+                    {/* Right axis labels */}
+                    {rightSeries.length > 0 && [0, 0.25, 0.5, 0.75, 1].map(pct => {
+                      const y = padding + pct * (height - padding * 2);
+                      const val = Math.round((rightMax - pct * (rightMax - rightMin)) * 10) / 10;
                       return (
-                        <g key={lift}>
-                          <polyline fill="none" stroke={color} strokeWidth="2" points={points} />
-                          {data.map((d, i) => (
-                            <circle key={i} cx={xScale(d.date)} cy={yScale(d.tracking1RM)} r="4" fill={color} />
+                        <text key={'right-' + pct} x={width - rightPadding + 5} y={y + 4} fill="#d29922" fontSize="10" textAnchor="start">{val}</text>
+                      );
+                    })}
+                    {/* Goal lines */}
+                    {visibleSeries.filter(s => s.goal).map(s => {
+                      const yScale = s.axis === 'left' ? yScaleLeft : yScaleRight;
+                      const goalY = yScale(s.goal);
+                      if (goalY < padding || goalY > height - padding) return null;
+                      return <line key={s.name + '-goal'} x1={padding} y1={goalY} x2={width - rightPadding} y2={goalY} stroke={s.color} strokeDasharray="4,4" strokeOpacity="0.3" />;
+                    })}
+                    {/* Data lines */}
+                    {visibleSeries.map(s => {
+                      const yScale = s.axis === 'left' ? yScaleLeft : yScaleRight;
+                      const points = s.data.map(d => `${xScale(d.date)},${yScale(d.value)}`).join(' ');
+                      return (
+                        <g key={s.name}>
+                          <polyline fill="none" stroke={s.color} strokeWidth="2" points={points} />
+                          {s.data.map((d, i) => (
+                            <g key={i}>
+                              <circle cx={xScale(d.date)} cy={yScale(d.value)} r="4" fill={s.color} />
+                              <title>{s.name}: {d.value} {s.unit} ({d.date})</title>
+                            </g>
                           ))}
                         </g>
                       );
                     })}
                     {/* X axis labels */}
-                    {allDates.filter((_, i) => i % Math.ceil(allDates.length / 5) === 0).map(date => (
+                    {allDates.filter((_, i) => i % Math.max(1, Math.ceil(allDates.length / 6)) === 0).map(date => (
                       <text key={date} x={xScale(date)} y={height - 10} fill="#8b949e" fontSize="10" textAnchor="middle">
                         {new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                       </text>
                     ))}
                   </svg>
-                  {/* Legend */}
-                  <div style={{ display: 'flex', gap: '16px', marginTop: '12px', flexWrap: 'wrap' }}>
-                    {fitness.goals.lifts.map(g => (
-                      <div key={g.name} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
-                        <div style={{ width: '12px', height: '3px', background: g.color, borderRadius: '2px' }} />
-                        <span>{g.name}</span>
-                        <span style={{ color: '#8b949e' }}>({g.tracking || g.current} → {g.goal})</span>
-                      </div>
-                    ))}
+                  {/* Legend - clickable toggles */}
+                  <div style={{ display: 'flex', gap: '12px', marginTop: '12px', flexWrap: 'wrap' }}>
+                    {allSeries.map(s => {
+                      const isVisible = chartToggles[s.name] !== false;
+                      const latest = s.data[s.data.length - 1]?.value;
+                      return (
+                        <div key={s.name} onClick={() => toggleChart(s.name)} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', cursor: 'pointer', opacity: isVisible ? 1 : 0.4, padding: '4px 8px', background: '#161b22', borderRadius: '4px', border: `1px solid ${isVisible ? s.color : '#30363d'}` }}>
+                          <div style={{ width: '10px', height: '3px', background: s.color, borderRadius: '2px' }} />
+                          <span>{s.name}</span>
+                          {latest && <span style={{ color: '#8b949e' }}>{latest}{s.goal ? ` → ${s.goal}` : ''}</span>}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               );
@@ -821,28 +875,30 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Recent Workouts */}
-          <div style={{...styles.card, gridColumn: 'span 2'}}>
+          {/* Recent Workouts - Full Width at Bottom */}
+          <div style={{...styles.card, gridColumn: '1 / -1'}}>
             <div style={styles.cardTitle}>📋 Recent Workouts</div>
-            {fitness?.recentWorkouts?.map(w => (
-              <div key={w.date} style={{ padding: '12px', margin: '8px 0', background: '#0d1117', borderRadius: '6px', borderLeft: `3px solid ${w.topSet?.hit ? '#3fb950' : '#f85149'}` }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <div>
-                    <strong>{w.type}</strong>
-                    <span style={{ color: '#8b949e', marginLeft: '12px' }}>{w.date}</span>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '12px' }}>
+              {fitness?.recentWorkouts?.map(w => (
+                <div key={w.date} style={{ padding: '12px', background: '#0d1117', borderRadius: '6px', borderLeft: `3px solid ${w.topSet?.hit ? '#3fb950' : '#f85149'}` }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <div>
+                      <strong>{w.type}</strong>
+                      <span style={{ color: '#8b949e', marginLeft: '12px' }}>{w.date}</span>
+                    </div>
+                    {w.weight && <span style={{ color: '#8b949e' }}>{w.weight} lbs</span>}
                   </div>
-                  {w.weight && <span style={{ color: '#8b949e' }}>{w.weight} lbs</span>}
+                  {w.topSet && (
+                    <div style={{ marginBottom: '8px' }}>
+                      <span style={{...styles.tag, background: w.topSet.hit ? '#238636' : '#da3633'}}>
+                        Top: {w.topSet.lift} {w.topSet.weight} x {w.topSet.reps} → {w.topSet.tracking1RM} lbs {w.topSet.hit ? '✓' : '✗'}
+                      </span>
+                    </div>
+                  )}
+                  {w.notes && <div style={{ fontSize: '13px', color: '#8b949e' }}>{w.notes}</div>}
                 </div>
-                {w.topSet && (
-                  <div style={{ marginBottom: '8px' }}>
-                    <span style={{...styles.tag, background: w.topSet.hit ? '#238636' : '#da3633'}}>
-                      Top: {w.topSet.lift} {w.topSet.weight} x {w.topSet.reps} {w.topSet.hit ? '✓' : '✗'}
-                    </span>
-                  </div>
-                )}
-                {w.notes && <div style={{ fontSize: '13px', color: '#8b949e' }}>{w.notes}</div>}
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
       )}
