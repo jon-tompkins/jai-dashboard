@@ -694,6 +694,76 @@ export default function Dashboard() {
 
       {tab === 'fitness' && (
         <div style={styles.grid}>
+          {/* Lift Progress Chart */}
+          <div style={{...styles.card, gridColumn: 'span 2'}}>
+            <div style={styles.cardTitle}>📈 Tracking 1RM Over Time</div>
+            {fitness?.liftHistory && (() => {
+              const allLifts = Object.keys(fitness.liftHistory);
+              const allDates = [...new Set(allLifts.flatMap(l => fitness.liftHistory[l].map(d => d.date)))].sort();
+              const minDate = allDates[0];
+              const maxDate = allDates[allDates.length - 1];
+              const allValues = allLifts.flatMap(l => fitness.liftHistory[l].map(d => d.tracking1RM));
+              const minVal = Math.min(...allValues) - 20;
+              const maxVal = Math.max(...allValues) + 20;
+              const width = 600, height = 250, padding = 40;
+              
+              const xScale = (date) => padding + ((new Date(date) - new Date(minDate)) / (new Date(maxDate) - new Date(minDate))) * (width - padding * 2);
+              const yScale = (val) => height - padding - ((val - minVal) / (maxVal - minVal)) * (height - padding * 2);
+              
+              return (
+                <div style={{ overflowX: 'auto' }}>
+                  <svg width={width} height={height} style={{ background: '#0d1117', borderRadius: '6px' }}>
+                    {/* Grid lines */}
+                    {[0, 0.25, 0.5, 0.75, 1].map(pct => {
+                      const y = padding + pct * (height - padding * 2);
+                      const val = Math.round(maxVal - pct * (maxVal - minVal));
+                      return (
+                        <g key={pct}>
+                          <line x1={padding} y1={y} x2={width - padding} y2={y} stroke="#21262d" />
+                          <text x={padding - 5} y={y + 4} fill="#8b949e" fontSize="10" textAnchor="end">{val}</text>
+                        </g>
+                      );
+                    })}
+                    {/* Goal lines */}
+                    {fitness.goals.lifts.map(g => g.goal <= maxVal && g.goal >= minVal && (
+                      <line key={g.name + '-goal'} x1={padding} y1={yScale(g.goal)} x2={width - padding} y2={yScale(g.goal)} stroke={g.color} strokeDasharray="4,4" strokeOpacity="0.4" />
+                    ))}
+                    {/* Lines for each lift */}
+                    {allLifts.map(lift => {
+                      const data = fitness.liftHistory[lift];
+                      const color = fitness.goals.lifts.find(g => g.name === lift)?.color || '#8b949e';
+                      const points = data.map(d => `${xScale(d.date)},${yScale(d.tracking1RM)}`).join(' ');
+                      return (
+                        <g key={lift}>
+                          <polyline fill="none" stroke={color} strokeWidth="2" points={points} />
+                          {data.map((d, i) => (
+                            <circle key={i} cx={xScale(d.date)} cy={yScale(d.tracking1RM)} r="4" fill={color} />
+                          ))}
+                        </g>
+                      );
+                    })}
+                    {/* X axis labels */}
+                    {allDates.filter((_, i) => i % Math.ceil(allDates.length / 5) === 0).map(date => (
+                      <text key={date} x={xScale(date)} y={height - 10} fill="#8b949e" fontSize="10" textAnchor="middle">
+                        {new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </text>
+                    ))}
+                  </svg>
+                  {/* Legend */}
+                  <div style={{ display: 'flex', gap: '16px', marginTop: '12px', flexWrap: 'wrap' }}>
+                    {fitness.goals.lifts.map(g => (
+                      <div key={g.name} style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
+                        <div style={{ width: '12px', height: '3px', background: g.color, borderRadius: '2px' }} />
+                        <span>{g.name}</span>
+                        <span style={{ color: '#8b949e' }}>({g.tracking || g.current} → {g.goal})</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+
           {/* Strength Goals */}
           <div style={styles.card}>
             <div style={styles.cardTitle}>🏋️ Strength Goals</div>
