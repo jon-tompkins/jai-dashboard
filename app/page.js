@@ -107,6 +107,9 @@ export default function Dashboard() {
   const [selectedNewsletter, setSelectedNewsletter] = useState(null);
   const [lastRefresh, setLastRefresh] = useState(null);
   const [editingAsset, setEditingAsset] = useState(null);
+  const [selectedAsset, setSelectedAsset] = useState(null);
+  const [assetTarget, setAssetTarget] = useState('');
+  const [assetStop, setAssetStop] = useState('');
 
   useEffect(() => { 
     fetchPortfolio(); 
@@ -470,76 +473,145 @@ export default function Dashboard() {
       )}
 
       {tab === 'assets' && (
-        <>
-          <div style={{ marginBottom: '16px' }}>
-            <button style={styles.btn} onClick={fetchAssets}>🔄 Refresh</button>
-          </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '16px' }}>
+          {/* Asset List */}
           <div style={styles.card}>
-            <div style={styles.cardTitle}>📋 Assets & Price Targets</div>
-            <table style={styles.table}>
-              <thead>
-                <tr>
-                  <th style={styles.th}>Symbol</th>
-                  <th style={styles.th}>Name</th>
-                  <th style={styles.th}>Type</th>
-                  <th style={styles.th}>Current</th>
-                  <th style={styles.th}>Target</th>
-                  <th style={styles.th}>Stop</th>
-                  <th style={styles.th}>Research</th>
-                  <th style={styles.th}></th>
-                </tr>
-              </thead>
-              <tbody>
-                {assets.map(a => {
-                  const pos = portfolio?.equities?.find(e => e.symbol === a.symbol) || 
-                              portfolio?.crypto?.find(c => c.symbol === a.symbol);
-                  const isEditing = editingAsset === a.symbol;
-                  return (
-                    <tr key={a.symbol}>
-                      <td style={styles.td}><strong>{a.symbol}</strong></td>
-                      <td style={styles.td}>{a.name}</td>
-                      <td style={styles.td}><span style={{...styles.tag, background: a.asset_type === 'crypto' ? '#8957e5' : a.asset_type === 'etf' ? '#d29922' : '#238636'}}>{a.asset_type}</span></td>
-                      <td style={styles.td}>{pos ? `$${pos.price?.toFixed(2)}` : '—'}</td>
-                      <td style={styles.td}>
-                        {isEditing ? (
-                          <input type="number" defaultValue={a.target_price || ''} style={{ width: '70px', background: '#0d1117', border: '1px solid #30363d', color: '#e6edf3', padding: '2px 4px', borderRadius: '4px' }} id={`target-${a.symbol}`} />
-                        ) : (
-                          <span style={a.target_price ? styles.green : { color: '#8b949e' }}>{a.target_price ? `$${a.target_price}` : '—'}</span>
-                        )}
-                      </td>
-                      <td style={styles.td}>
-                        {isEditing ? (
-                          <input type="number" defaultValue={a.stop_loss || ''} style={{ width: '70px', background: '#0d1117', border: '1px solid #30363d', color: '#e6edf3', padding: '2px 4px', borderRadius: '4px' }} id={`stop-${a.symbol}`} />
-                        ) : (
-                          <span style={a.stop_loss ? styles.red : { color: '#8b949e' }}>{a.stop_loss ? `$${a.stop_loss}` : '—'}</span>
-                        )}
-                      </td>
-                      <td style={styles.td}>
-                        {a.research?.length > 0 ? (
-                          <span style={{...styles.tag, background: '#238636'}}>{a.research.length} report{a.research.length > 1 ? 's' : ''}</span>
-                        ) : '—'}
-                      </td>
-                      <td style={styles.td}>
-                        {isEditing ? (
-                          <>
-                            <button style={{...styles.btn, marginRight: '4px', background: '#238636'}} onClick={() => {
-                              const target = document.getElementById(`target-${a.symbol}`)?.value;
-                              const stop = document.getElementById(`stop-${a.symbol}`)?.value;
-                              updateAsset(a.symbol, { target_price: target, stop_loss: stop });
-                            }}>Save</button>
-                            <button style={styles.btn} onClick={() => setEditingAsset(null)}>Cancel</button>
-                          </>
-                        ) : (
-                          <button style={styles.btn} onClick={() => setEditingAsset(a.symbol)}>Edit</button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <div style={styles.cardTitle}>📋 Assets ({assets.length})</div>
+            <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+              {assets.map(a => {
+                const pos = portfolio?.equities?.find(e => e.symbol === a.symbol) || 
+                            portfolio?.crypto?.find(c => c.symbol === a.symbol);
+                const isSelected = selectedAsset?.symbol === a.symbol;
+                return (
+                  <div key={a.symbol} onClick={() => { setSelectedAsset(a); setAssetTarget(a.target_price || ''); setAssetStop(a.stop_loss || ''); }} style={{...styles.researchItem, borderColor: isSelected ? '#58a6ff' : '#30363d', cursor: 'pointer'}}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <strong>{a.symbol}</strong>
+                        <span style={{ color: '#8b949e', marginLeft: '8px', fontSize: '12px' }}>{a.name}</span>
+                      </div>
+                      <span style={{...styles.tag, background: a.asset_type === 'crypto' ? '#8957e5' : a.asset_type === 'etf' ? '#d29922' : '#238636', fontSize: '10px'}}>{a.asset_type}</span>
+                    </div>
+                    <div style={{ fontSize: '12px', marginTop: '4px', display: 'flex', gap: '12px' }}>
+                      {pos && <span>${pos.price?.toFixed(2)}</span>}
+                      {a.target_price && <span style={styles.green}>T: ${a.target_price}</span>}
+                      {a.stop_loss && <span style={styles.red}>S: ${a.stop_loss}</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </>
+
+          {/* Asset Detail */}
+          <div style={styles.card}>
+            {selectedAsset ? (() => {
+              const a = selectedAsset;
+              const equityPos = portfolio?.equities?.filter(e => e.symbol === a.symbol) || [];
+              const cryptoPos = portfolio?.crypto?.filter(c => c.symbol === a.symbol) || [];
+              const optionPos = portfolio?.options?.filter(o => o.symbol === a.symbol) || [];
+              const allPositions = [...equityPos.map(p => ({...p, type: 'equity'})), ...cryptoPos.map(p => ({...p, type: 'crypto'})), ...optionPos.map(p => ({...p, type: 'option'}))];
+              const assetResearch = reports.filter(r => r.ticker === a.symbol || r.asset_symbol === a.symbol);
+              const assetNewsletters = newsletters.filter(n => n.referenced_assets?.includes(a.symbol));
+              
+              return (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                    <div>
+                      <h2 style={{ margin: 0, fontSize: '24px' }}>{a.symbol}</h2>
+                      <div style={{ color: '#8b949e', marginTop: '4px' }}>{a.name}</div>
+                    </div>
+                    <span style={{...styles.tag, background: a.asset_type === 'crypto' ? '#8957e5' : a.asset_type === 'etf' ? '#d29922' : '#238636'}}>{a.asset_type}</span>
+                  </div>
+
+                  {/* Positions */}
+                  <div style={{ marginBottom: '20px' }}>
+                    <div style={{ fontSize: '13px', color: '#8b949e', marginBottom: '8px', textTransform: 'uppercase' }}>Positions</div>
+                    {allPositions.length > 0 ? (
+                      <table style={styles.table}>
+                        <thead><tr><th style={styles.th}>Type</th><th style={styles.th}>Qty</th><th style={styles.th}>Price</th><th style={styles.th}>Value</th><th style={styles.th}>P/L</th></tr></thead>
+                        <tbody>
+                          {allPositions.map((p, i) => (
+                            <tr key={i}>
+                              <td style={styles.td}><span style={{...styles.tag, background: p.type === 'option' ? '#d29922' : p.type === 'crypto' ? '#8957e5' : '#238636'}}>{p.type}</span></td>
+                              <td style={styles.td}>{p.units || p.qty}</td>
+                              <td style={styles.td}>${p.price?.toFixed(2)}</td>
+                              <td style={styles.td}>{formatMoney(p.value)}</td>
+                              <td style={{...styles.td, ...(p.pl >= 0 ? styles.green : styles.red)}}>{formatMoney(p.pl)} ({formatPct(p.plPct || 0)})</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <div style={{ padding: '12px', background: '#0d1117', borderRadius: '6px', color: '#8b949e' }}>No open positions</div>
+                    )}
+                  </div>
+
+                  {/* Target & Stop */}
+                  <div style={{ marginBottom: '20px', padding: '16px', background: '#0d1117', borderRadius: '8px' }}>
+                    <div style={{ fontSize: '13px', color: '#8b949e', marginBottom: '12px', textTransform: 'uppercase' }}>Price Targets</div>
+                    <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-end' }}>
+                      <div>
+                        <label style={{ fontSize: '12px', color: '#8b949e', display: 'block', marginBottom: '4px' }}>Target Price</label>
+                        <input type="number" value={assetTarget} onChange={e => setAssetTarget(e.target.value)} placeholder="—" style={{ width: '100px', background: '#161b22', border: '1px solid #30363d', color: '#3fb950', padding: '8px', borderRadius: '6px', fontSize: '16px' }} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '12px', color: '#8b949e', display: 'block', marginBottom: '4px' }}>Stop Loss</label>
+                        <input type="number" value={assetStop} onChange={e => setAssetStop(e.target.value)} placeholder="—" style={{ width: '100px', background: '#161b22', border: '1px solid #30363d', color: '#f85149', padding: '8px', borderRadius: '6px', fontSize: '16px' }} />
+                      </div>
+                      <button style={{...styles.btn, background: '#238636', padding: '8px 16px'}} onClick={() => { updateAsset(a.symbol, { target_price: assetTarget || null, stop_loss: assetStop || null }); setSelectedAsset({...a, target_price: assetTarget, stop_loss: assetStop}); }}>Save</button>
+                    </div>
+                  </div>
+
+                  {/* Research */}
+                  <div style={{ marginBottom: '20px' }}>
+                    <div style={{ fontSize: '13px', color: '#8b949e', marginBottom: '8px', textTransform: 'uppercase' }}>Research Reports ({assetResearch.length})</div>
+                    {assetResearch.length > 0 ? (
+                      <table style={styles.table}>
+                        <thead><tr><th style={styles.th}>Title</th><th style={styles.th}>Type</th><th style={styles.th}>Date</th></tr></thead>
+                        <tbody>
+                          {assetResearch.map(r => (
+                            <tr key={r.id} style={{ cursor: 'pointer' }} onClick={() => { setTab('research'); setSelected(r); }}>
+                              <td style={styles.td}>{r.title || r.ticker}</td>
+                              <td style={styles.td}><span style={{...styles.tag, background: '#238636'}}>{r.type}</span></td>
+                              <td style={styles.td}>{new Date(r.updated_at).toLocaleDateString()}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <div style={{ padding: '12px', background: '#0d1117', borderRadius: '6px', color: '#8b949e' }}>No research reports</div>
+                    )}
+                  </div>
+
+                  {/* Newsletters */}
+                  <div>
+                    <div style={{ fontSize: '13px', color: '#8b949e', marginBottom: '8px', textTransform: 'uppercase' }}>Related Newsletters ({assetNewsletters.length})</div>
+                    {assetNewsletters.length > 0 ? (
+                      <table style={styles.table}>
+                        <thead><tr><th style={styles.th}>Title</th><th style={styles.th}>Type</th><th style={styles.th}>Date</th></tr></thead>
+                        <tbody>
+                          {assetNewsletters.map(n => (
+                            <tr key={n.id} style={{ cursor: 'pointer' }} onClick={() => { setTab('newsletters'); setSelectedNewsletter(n); }}>
+                              <td style={styles.td}>{n.title}</td>
+                              <td style={styles.td}><span style={{...styles.tag, background: '#1d9bf0'}}>{n.type}</span></td>
+                              <td style={styles.td}>{new Date(n.created_at).toLocaleDateString()}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <div style={{ padding: '12px', background: '#0d1117', borderRadius: '6px', color: '#8b949e' }}>No related newsletters</div>
+                    )}
+                  </div>
+                </>
+              );
+            })() : (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '300px', color: '#8b949e' }}>
+                ← Select an asset to view details
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {tab === 'research' && (
