@@ -115,6 +115,7 @@ export default function Dashboard() {
   const [workoutLogs, setWorkoutLogs] = useState({ metrics: [], logs: [] });
   const [showWorkoutForm, setShowWorkoutForm] = useState(false);
   const [workoutForm, setWorkoutForm] = useState({ date: new Date().toISOString().split('T')[0], type: 'upper', description: '', body_weight: '', duration_min: '', notes: '', trackedMetrics: [] });
+  const [workoutFilter, setWorkoutFilter] = useState({ type: 'all', tracked: 'all' });
 
   useEffect(() => { fetchFitness(); fetchWorkoutLogs(); }, []);
 
@@ -1008,33 +1009,70 @@ export default function Dashboard() {
               </div>
             )}
 
-            {/* Workout List */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '12px' }}>
-              {(workoutLogs.logs?.length > 0 ? workoutLogs.logs : fitness?.recentWorkouts)?.map((w, i) => (
-                <div key={w.id || w.date + i} style={{ padding: '12px', background: '#0d1117', borderRadius: '6px', borderLeft: `3px solid ${w.type === 'run' ? '#f778ba' : w.type === 'upper' ? '#58a6ff' : w.type === 'lower' ? '#3fb950' : '#d29922'}` }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <div>
-                      <span style={{...styles.tag, background: w.type === 'run' ? '#f778ba' : w.type === 'upper' ? '#58a6ff' : w.type === 'lower' ? '#3fb950' : '#d29922', marginRight: '8px'}}>{w.type}</span>
-                      <span style={{ color: '#8b949e' }}>{w.date}</span>
-                    </div>
-                    {w.body_weight && <span style={{ color: '#8b949e' }}>{w.body_weight} lbs</span>}
-                  </div>
-                  {w.description && <div style={{ fontSize: '13px', marginBottom: '8px' }}>{w.description}</div>}
-                  {w.workout_metrics?.map(wm => (
-                    <span key={wm.id} style={{...styles.tag, background: '#238636', marginRight: '4px', marginBottom: '4px'}}>
-                      {workoutLogs.metrics?.find(m => m.id === wm.metric_id)?.name}: {wm.value}{wm.reps ? ` × ${wm.reps}` : ''} {wm.calculated_max ? `→ ${wm.calculated_max}` : ''}
-                    </span>
-                  ))}
-                  {w.topSet && (
-                    <div style={{ marginBottom: '8px' }}>
-                      <span style={{...styles.tag, background: w.topSet.hit ? '#238636' : '#da3633'}}>
-                        {w.topSet.lift} {w.topSet.weight} × {w.topSet.reps} → {w.topSet.tracking1RM} {w.topSet.hit ? '✓' : '✗'}
-                      </span>
-                    </div>
-                  )}
-                  {w.notes && <div style={{ fontSize: '12px', color: '#8b949e', marginTop: '4px' }}>{w.notes}</div>}
-                </div>
-              ))}
+            {/* Filters */}
+            <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
+              <select value={workoutFilter.type} onChange={e => setWorkoutFilter({...workoutFilter, type: e.target.value})} style={{ padding: '6px 12px', background: '#161b22', border: '1px solid #30363d', borderRadius: '6px', color: '#e6edf3' }}>
+                <option value="all">All Types</option>
+                <option value="upper">Upper</option>
+                <option value="lower">Lower</option>
+                <option value="full">Full Body</option>
+                <option value="run">Run</option>
+                <option value="conditioning">Conditioning</option>
+              </select>
+              <select value={workoutFilter.tracked} onChange={e => setWorkoutFilter({...workoutFilter, tracked: e.target.value})} style={{ padding: '6px 12px', background: '#161b22', border: '1px solid #30363d', borderRadius: '6px', color: '#e6edf3' }}>
+                <option value="all">All Workouts</option>
+                <option value="tracked">With Tracked Lifts</option>
+                <option value="untracked">Without Tracked</option>
+              </select>
+            </div>
+
+            {/* Workout Table */}
+            <div style={{ overflowX: 'auto' }}>
+              <table style={styles.table}>
+                <thead>
+                  <tr>
+                    <th style={styles.th}>Date</th>
+                    <th style={styles.th}>Type</th>
+                    <th style={styles.th}>Description</th>
+                    <th style={styles.th}>Tracked Lifts</th>
+                    <th style={styles.th}>Weight</th>
+                    <th style={styles.th}>Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(workoutLogs.logs?.length > 0 ? workoutLogs.logs : fitness?.recentWorkouts)
+                    ?.filter(w => workoutFilter.type === 'all' || w.type === workoutFilter.type)
+                    ?.filter(w => {
+                      if (workoutFilter.tracked === 'all') return true;
+                      const hasTracked = w.workout_metrics?.length > 0 || w.topSet;
+                      return workoutFilter.tracked === 'tracked' ? hasTracked : !hasTracked;
+                    })
+                    ?.map((w, i) => {
+                      const typeColor = w.type === 'run' ? '#f778ba' : w.type === 'upper' ? '#58a6ff' : w.type === 'lower' ? '#3fb950' : w.type === 'full' ? '#a371f7' : '#d29922';
+                      return (
+                        <tr key={w.id || w.date + i}>
+                          <td style={styles.td}>{w.date}</td>
+                          <td style={styles.td}><span style={{...styles.tag, background: typeColor}}>{w.type}</span></td>
+                          <td style={{...styles.td, maxWidth: '300px'}}>{w.description}</td>
+                          <td style={styles.td}>
+                            {w.workout_metrics?.map(wm => (
+                              <div key={wm.id} style={{ fontSize: '12px', marginBottom: '2px' }}>
+                                <strong>{workoutLogs.metrics?.find(m => m.id === wm.metric_id)?.name}</strong>: {wm.value}{wm.reps ? ` × ${wm.reps}` : ''} {wm.calculated_max ? <span style={styles.green}>→ {wm.calculated_max}</span> : ''}
+                              </div>
+                            ))}
+                            {w.topSet && (
+                              <div style={{ fontSize: '12px' }}>
+                                <strong>{w.topSet.lift}</strong>: {w.topSet.weight} × {w.topSet.reps} <span style={w.topSet.hit ? styles.green : styles.red}>→ {w.topSet.tracking1RM}</span>
+                              </div>
+                            )}
+                          </td>
+                          <td style={styles.td}>{w.body_weight || w.weight || '—'}</td>
+                          <td style={{...styles.td, color: '#8b949e', fontSize: '12px', maxWidth: '200px'}}>{w.notes || '—'}</td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
