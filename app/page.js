@@ -222,7 +222,7 @@ export default function Dashboard() {
       </div>
 
       <div style={styles.tabs}>
-        {['portfolio', 'trades', 'assets', 'research', 'newsletters'].map(t => (
+        {['portfolio', 'trades', 'assets', 'reports'].map(t => (
           <div key={t} style={tab === t ? styles.tabActive : styles.tab} onClick={() => setTab(t)}>
             {t.charAt(0).toUpperCase() + t.slice(1)}
           </div>
@@ -614,78 +614,72 @@ export default function Dashboard() {
         </div>
       )}
 
-      {tab === 'research' && (
-        <div style={styles.researchGrid}>
-          <div style={styles.card}>
-            <div style={styles.cardTitle}>📊 Research Reports</div>
-            {reports.length === 0 ? (
-              <p style={{ color: '#8b949e' }}>No reports yet</p>
-            ) : (
-              reports.map(r => (
-                <div key={r.id} style={{...styles.researchItem, borderColor: selected?.id === r.id ? '#58a6ff' : '#30363d'}} onClick={() => setSelected(r)}>
-                  <div style={{ fontWeight: 500 }}>{r.ticker}</div>
-                  <div style={{ fontSize: '12px', color: '#8b949e', marginTop: '4px' }}>
-                    <span style={{...styles.tag, background: r.type === 'sector' ? '#d29922' : '#238636'}}>{r.type}</span>
-                    {new Date(r.updated_at).toLocaleDateString()}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-          <div style={styles.card}>
-            <div style={styles.cardTitle}>{selected?.ticker || 'Select a report'}</div>
-            {selected ? (
-              <div style={{ fontSize: '14px', lineHeight: '1.7' }} dangerouslySetInnerHTML={{ __html: renderMarkdown(selected.content) }} />
-            ) : (
-              <p style={{ color: '#8b949e' }}>← Click a report to view</p>
-            )}
-          </div>
-        </div>
-      )}
-
-      {tab === 'newsletters' && (
-        <div style={styles.researchGrid}>
-          <div style={styles.card}>
-            <div style={styles.cardTitle}>📰 Newsletters & Reports</div>
-            {newsletters.length === 0 ? (
-              <p style={{ color: '#8b949e' }}>No newsletters yet</p>
-            ) : (
-              newsletters.map(n => (
-                <div key={n.id} style={{...styles.researchItem, borderColor: selectedNewsletter?.id === n.id ? '#58a6ff' : '#30363d'}} onClick={() => setSelectedNewsletter(n)}>
-                  <div style={{ fontWeight: 500 }}>{n.title}</div>
-                  <div style={{ fontSize: '12px', color: '#8b949e', marginTop: '4px' }}>
-                    <span style={{...styles.tag, background: n.type === 'twitter_digest' ? '#1d9bf0' : '#238636'}}>{n.type}</span>
-                    {new Date(n.created_at).toLocaleDateString()}
-                  </div>
-                  {n.source_accounts?.length > 0 && (
-                    <div style={{ fontSize: '11px', color: '#8b949e', marginTop: '4px' }}>
-                      Sources: {n.source_accounts.slice(0, 3).map(a => `@${a}`).join(', ')}{n.source_accounts.length > 3 ? '...' : ''}
+      {tab === 'reports' && (() => {
+        const allReports = [
+          ...reports.map(r => ({ ...r, _type: 'research', _title: r.title || r.ticker, _date: r.updated_at })),
+          ...newsletters.map(n => ({ ...n, _type: 'newsletter', _title: n.title, _date: n.created_at }))
+        ].sort((a, b) => new Date(b._date) - new Date(a._date));
+        const selectedReport = selected || selectedNewsletter;
+        
+        return (
+          <div style={styles.researchGrid}>
+            <div style={styles.card}>
+              <div style={styles.cardTitle}>📊 Reports ({allReports.length})</div>
+              <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+                {allReports.length === 0 ? (
+                  <p style={{ color: '#8b949e' }}>No reports yet</p>
+                ) : (
+                  allReports.map(r => {
+                    const isSelected = selectedReport?.id === r.id;
+                    const typeColor = r._type === 'newsletter' ? '#1d9bf0' : r.type === 'sector' ? '#d29922' : '#238636';
+                    const typeLabel = r._type === 'newsletter' ? (r.type || 'newsletter') : r.type;
+                    return (
+                      <div key={r.id} style={{...styles.researchItem, borderColor: isSelected ? '#58a6ff' : '#30363d'}} onClick={() => { r._type === 'newsletter' ? setSelectedNewsletter(r) : setSelected(r); r._type === 'newsletter' ? setSelected(null) : setSelectedNewsletter(null); }}>
+                        <div style={{ fontWeight: 500 }}>{r._title}</div>
+                        <div style={{ fontSize: '12px', color: '#8b949e', marginTop: '4px' }}>
+                          <span style={{...styles.tag, background: typeColor}}>{typeLabel}</span>
+                          {new Date(r._date).toLocaleDateString()}
+                        </div>
+                        {r.referenced_assets?.length > 0 && (
+                          <div style={{ fontSize: '11px', marginTop: '4px' }}>
+                            {r.referenced_assets.slice(0, 4).map(a => (
+                              <span key={a} style={{...styles.tag, background: '#30363d', fontSize: '10px'}}>{a}</span>
+                            ))}
+                            {r.referenced_assets.length > 4 && <span style={{ color: '#8b949e' }}>+{r.referenced_assets.length - 4}</span>}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+            <div style={styles.card}>
+              <div style={styles.cardTitle}>{selectedReport?._title || selectedReport?.ticker || 'Select a report'}</div>
+              {selectedReport ? (
+                <>
+                  {selectedReport.referenced_assets?.length > 0 && (
+                    <div style={{ marginBottom: '12px', padding: '8px', background: '#0d1117', borderRadius: '6px', fontSize: '12px' }}>
+                      <span style={{ color: '#8b949e' }}>Assets: </span>
+                      {selectedReport.referenced_assets.map(a => (
+                        <span key={a} style={{...styles.tag, background: '#30363d', cursor: 'pointer'}} onClick={() => { setTab('assets'); setSelectedAsset(assets.find(ast => ast.symbol === a)); }}>{a}</span>
+                      ))}
                     </div>
                   )}
-                </div>
-              ))
-            )}
+                  {selectedReport.source_accounts?.length > 0 && (
+                    <div style={{ marginBottom: '12px', fontSize: '12px', color: '#8b949e' }}>
+                      Sources: {selectedReport.source_accounts.map(a => `@${a}`).join(', ')}
+                    </div>
+                  )}
+                  <div style={{ fontSize: '14px', lineHeight: '1.7' }} dangerouslySetInnerHTML={{ __html: renderMarkdown(selectedReport.content) }} />
+                </>
+              ) : (
+                <p style={{ color: '#8b949e' }}>← Click a report to view</p>
+              )}
+            </div>
           </div>
-          <div style={styles.card}>
-            <div style={styles.cardTitle}>{selectedNewsletter?.title || 'Select a newsletter'}</div>
-            {selectedNewsletter ? (
-              <>
-                {selectedNewsletter.referenced_assets?.length > 0 && (
-                  <div style={{ marginBottom: '12px', padding: '8px', background: '#0d1117', borderRadius: '6px', fontSize: '12px' }}>
-                    <span style={{ color: '#8b949e' }}>Referenced: </span>
-                    {selectedNewsletter.referenced_assets.map(a => (
-                      <span key={a} style={{...styles.tag, background: '#30363d'}}>{a}</span>
-                    ))}
-                  </div>
-                )}
-                <div style={{ fontSize: '14px', lineHeight: '1.7' }} dangerouslySetInnerHTML={{ __html: renderMarkdown(selectedNewsletter.content) }} />
-              </>
-            ) : (
-              <p style={{ color: '#8b949e' }}>← Click a newsletter to view</p>
-            )}
-          </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
