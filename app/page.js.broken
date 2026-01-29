@@ -42,8 +42,8 @@ const styles = {
   summaryGrid: { display: 'grid', gridTemplateColumns: '200px 1fr', gap: '24px', alignItems: 'start' },
 };
 
-function formatMoney(n, isPublic = false) { 
-  if (isPublic) return '***';
+function formatMoney(n) { 
+  if (publicScreenshot) return '***';
   return '$' + (n || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); 
 }
 function formatPct(n) { return (n >= 0 ? '+' : '') + (n * 100).toFixed(1) + '%'; }
@@ -225,9 +225,6 @@ export default function Dashboard() {
   const [workoutForm, setWorkoutForm] = useState({ date: new Date().toISOString().split('T')[0], type: 'upper', description: '', body_weight: '', duration_min: '', notes: '', trackedMetrics: [] });
   const [workoutFilter, setWorkoutFilter] = useState({ type: 'all', tracked: 'all' });
   const [publicScreenshot, setPublicScreenshot] = useState(false);
-
-  // Wrapper that uses component state
-  const fmtMoney = (n) => formatMoney(n, publicScreenshot);
 
   useEffect(() => { fetchFitness(); fetchWorkoutLogs(); }, []);
 
@@ -596,10 +593,103 @@ export default function Dashboard() {
                       holding={h} 
                       s={s} 
                       publicScreenshot={publicScreenshot}
-                      formatMoney={fmtMoney}
+                      formatMoney={formatMoney}
                       formatPct={formatPct}
                     />
                   ));
+                          <td style={styles.td}>
+                            <span style={{...styles.tag, background: 
+                              h.type === 'EQUITY' ? '#238636' :
+                              h.type === 'CRYPTO' ? '#8957e5' :
+                              h.type === 'CASH' ? '#8b949e' :
+                              h.type === 'OPTIONS' ? '#d29922' : '#a371f7'
+                            }}>{h.type}</span>
+                          </td>
+                          <td style={styles.td}>${h.price?.toFixed(2)}</td>
+                          <td style={styles.td}>{formatMoney(h.value)}</td>
+                          <td style={styles.td}>{formatMoney(h.notional)}</td>
+                          <td style={{...styles.td, ...(h.pl >= 0 ? styles.green : styles.red)}}>
+                            {formatMoney(h.pl)} ({formatPct(h.plPct)})
+                          </td>
+                          <td style={styles.td}>
+                            {publicScreenshot && h.data && (
+                              <span style={{ color: '#8b949e', fontSize: '11px' }}>
+                                {h.type === 'EQUITY' && `${((h.data.units * h.data.price) / s.total * 100).toFixed(1)}%`}
+                                {h.type === 'CRYPTO' && `${(h.data.value / s.total * 100).toFixed(1)}%`}
+                                {h.type === 'CASH' && `${(h.data.value / s.total * 100).toFixed(1)}%`}
+                                {h.type === 'OPTIONS' && `${(h.data.value / s.total * 100).toFixed(1)}%`}
+                                {h.type === 'COMBINED' && `${(h.data.value / s.total * 100).toFixed(1)}%`}
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                        {expanded && h.expandable && (
+                          <tr>
+                            <td colSpan="7" style={{...styles.td, background: '#0d1117', padding: '12px' }}>
+                              <table style={{...styles.table, margin: 0, fontSize: '12px' }}>
+                                <tbody>
+                                  {h.data.equity && (
+                                    <tr>
+                                      <td style={{...styles.td, border: 'none', padding: '4px 8px' }}>
+                                        <span style={{...styles.tag, background: '#238636', fontSize: '10px' }}>EQUITY</span>
+                                        <strong>{h.data.equity.symbol}</strong>
+                                      </td>
+                                      <td style={{...styles.td, border: 'none', padding: '4px 8px' }}>
+                                        {publicScreenshot ? 
+                                          `${(h.data.equity.units / h.data.value * 100).toFixed(1)}%` :
+                                          `${h.data.equity.units} shares`
+                                        }
+                                      </td>
+                                      <td style={{...styles.td, border: 'none', padding: '4px 8px' }}>
+                                        ${h.data.equity.price?.toFixed(2)}
+                                      </td>
+                                      <td style={{...styles.td, border: 'none', padding: '4px 8px' }}>
+                                        {formatMoney(h.data.equity.value)}
+                                      </td>
+                                      <td style={{...styles.td, border: 'none', padding: '4px 8px' }}>
+                                        {formatMoney(h.data.equity.value)}
+                                      </td>
+                                      <td style={{...styles.td, border: 'none', padding: '4px 8px', ...(h.data.equity.pl >= 0 ? styles.green : styles.red) }}>
+                                        {formatMoney(h.data.equity.pl)} ({formatPct(h.data.equity.plPct)})
+                                      </td>
+                                    </tr>
+                                  )}
+                                  {h.data.options?.map((o, j) => (
+                                    <tr key={j}>
+                                      <td style={{...styles.td, border: 'none', padding: '4px 8px' }}>
+                                        <span style={{...styles.tag, background: o.type === 'CALL' ? '#238636' : '#da3633', fontSize: '10px' }}>
+                                          {o.type}
+                                        </span>
+                                        <strong>{o.contract}</strong>
+                                      </td>
+                                      <td style={{...styles.td, border: 'none', padding: '4px 8px' }}>
+                                        {publicScreenshot ? 
+                                          `${(o.value / h.data.value * 100).toFixed(1)}%` :
+                                          `${o.qty} contracts`
+                                        }
+                                      </td>
+                                      <td style={{...styles.td, border: 'none', padding: '4px 8px' }}>
+                                        ${o.strike}
+                                      </td>
+                                      <td style={{...styles.td, border: 'none', padding: '4px 8px' }}>
+                                        {formatMoney(o.value)}
+                                      </td>
+                                      <td style={{...styles.td, border: 'none', padding: '4px 8px' }}>
+                                        {formatMoney(o.notional)}
+                                      </td>
+                                      <td style={{...styles.td, border: 'none', padding: '4px 8px' }}>
+                                        {formatMoney(o.value)}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  });
                 })()}
               </tbody>
             </table>
