@@ -225,6 +225,10 @@ export default function Dashboard() {
   const [workoutForm, setWorkoutForm] = useState({ date: new Date().toISOString().split('T')[0], type: 'upper', description: '', body_weight: '', duration_min: '', notes: '', trackedMetrics: [] });
   const [workoutFilter, setWorkoutFilter] = useState({ type: 'all', tracked: 'all' });
   const [publicScreenshot, setPublicScreenshot] = useState(false);
+  const [reviewFiles, setReviewFiles] = useState([]);
+  const [selectedReviewFile, setSelectedReviewFile] = useState(null);
+  const [reviewContent, setReviewContent] = useState(null);
+  const [reviewLoading, setReviewLoading] = useState(false);
 
   // Wrapper that uses component state
   const fmtMoney = (n) => formatMoney(n, publicScreenshot);
@@ -287,6 +291,7 @@ export default function Dashboard() {
     fetchTrades();
     fetchAssets();
     fetchNewsletters();
+    fetchReviewFiles();
   }, []);
 
   async function fetchPortfolio() {
@@ -334,6 +339,24 @@ export default function Dashboard() {
       setNewsletters(data.newsletters || []);
       if (data.newsletters?.length > 0) setSelectedNewsletter(data.newsletters[0]);
     } catch (e) { console.error(e); }
+  }
+
+  async function fetchReviewFiles() {
+    try {
+      const res = await fetch('/api/review');
+      const data = await res.json();
+      setReviewFiles(data.files || []);
+    } catch (e) { console.error(e); }
+  }
+
+  async function fetchReviewContent(filePath) {
+    setReviewLoading(true);
+    try {
+      const res = await fetch(`/api/review?file=${encodeURIComponent(filePath)}`);
+      const data = await res.json();
+      setReviewContent(data);
+    } catch (e) { console.error(e); }
+    setReviewLoading(false);
   }
 
   async function updateAsset(symbol, updates) {
@@ -411,7 +434,7 @@ export default function Dashboard() {
       </div>
 
       <div style={styles.tabs}>
-        {['portfolio', 'trades', 'assets', 'reports', 'fitness'].map(t => (
+        {['portfolio', 'trades', 'assets', 'reports', 'fitness', 'review'].map(t => (
           <div key={t} style={tab === t ? styles.tabActive : styles.tab} onClick={() => setTab(t)}>
             {t.charAt(0).toUpperCase() + t.slice(1)}
           </div>
@@ -1292,6 +1315,94 @@ export default function Dashboard() {
                 </tbody>
               </table>
             </div>
+          </div>
+        </div>
+      )}
+
+      {tab === 'review' && (
+        <div className="review-grid" style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'minmax(200px, 280px) 1fr', 
+          gap: '16px'
+        }}>
+          {/* File List - responsive */}
+          <div className="review-file-list" style={{...styles.card, maxHeight: reviewContent ? '40vh' : 'auto', overflowY: 'auto'}}>
+            <div style={styles.cardTitle}>📁 Files ({reviewFiles.length})</div>
+            {reviewFiles.length === 0 ? (
+              <p style={{ color: '#8b949e', fontSize: '14px' }}>Loading files...</p>
+            ) : (
+              Object.entries(reviewFiles.reduce((acc, f) => {
+                if (!acc[f.category]) acc[f.category] = [];
+                acc[f.category].push(f);
+                return acc;
+              }, {})).map(([category, files]) => (
+                <div key={category} style={{ marginBottom: '12px' }}>
+                  <div style={{ fontSize: '11px', color: '#8b949e', textTransform: 'uppercase', marginBottom: '6px', letterSpacing: '0.5px' }}>{category}</div>
+                  {files.map(f => {
+                    const isSelected = selectedReviewFile?.path === f.path;
+                    return (
+                      <div 
+                        key={f.path} 
+                        onClick={() => { setSelectedReviewFile(f); fetchReviewContent(f.path); }}
+                        style={{
+                          padding: '10px 12px',
+                          margin: '4px 0',
+                          background: isSelected ? '#21262d' : '#0d1117',
+                          border: `1px solid ${isSelected ? '#58a6ff' : '#30363d'}`,
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <div style={{ fontWeight: 500, fontSize: '14px' }}>📄 {f.name}</div>
+                        <div style={{ fontSize: '11px', color: '#8b949e', marginTop: '4px' }}>
+                          {(f.size / 1024).toFixed(1)} KB • {new Date(f.modified).toLocaleDateString()}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* File Content Viewer */}
+          <div className="review-content" style={{...styles.card, minHeight: '60vh', maxHeight: '80vh', overflowY: 'auto'}}>
+            {reviewLoading ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '200px', color: '#8b949e' }}>
+                ⏳ Loading...
+              </div>
+            ) : reviewContent ? (
+              <>
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center',
+                  marginBottom: '16px',
+                  paddingBottom: '12px',
+                  borderBottom: '1px solid #30363d',
+                  position: 'sticky',
+                  top: 0,
+                  background: '#161b22',
+                  zIndex: 10
+                }}>
+                  <h2 style={{ margin: 0, fontSize: '18px' }}>📄 {reviewContent.name}</h2>
+                  <span style={{ fontSize: '12px', color: '#8b949e' }}>{(reviewContent.size / 1024).toFixed(1)} KB</span>
+                </div>
+                <div 
+                  style={{ 
+                    fontSize: '14px', 
+                    lineHeight: '1.7',
+                    color: '#e6edf3'
+                  }} 
+                  dangerouslySetInnerHTML={{ __html: renderMarkdown(reviewContent.content) }} 
+                />
+              </>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '200px', color: '#8b949e' }}>
+                ← Select a file to view
+              </div>
+            )}
           </div>
         </div>
       )}
