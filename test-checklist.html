@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Jai Dashboard Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        .pass { color: green; }
+        .fail { color: red; }
+        .feature { margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>Jai Dashboard Test Checklist</h1>
+    
+    <div class="test-section">
+        <h2>✅ API Changes</h2>
+        <div class="feature pass">✓ Notional values added to options in /api/portfolio</div>
+        <div class="feature pass">✓ New "AI Victims" trade added to database</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>🔄 UI Changes to Test</h2>
+        <div class="feature">1. Public Screenshot toggle in header (eye icon)</div>
+        <div class="feature">2. Unified holdings table with Type column (EQUITY, CRYPTO, CASH, OPTIONS, COMBINED)</div>
+        <div class="feature">3. Options grouped by underlying with expandable rows</div>
+        <div class="feature">4. Notional column showing calculated values</div>
+        <div class="feature">5. When public mode is on: dollar values show as "***", positions show as percentages</div>
+        <div class="feature">6. "AI Victims" trade appears in trades tab with red color (HEDGE category)</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>📋 Manual Testing Steps</h2>
+        <ol>
+            <li>Open http://localhost:3000 in browser</li>
+            <li>Verify Public Screenshot toggle is in header</li>
+            <li>Check Portfolio tab shows unified holdings table</li>
+            <li>Click on expandable rows (options with underlying equity)</li>
+            <li>Toggle Public Screenshot mode and verify:
+                <ul>
+                    <li>All dollar amounts show as "***"</li>
+                    <li>Position sizes show as percentages</li>
+                </ul>
+            </li>
+            <li>Check Trades tab for "AI Victims" trade with ORCL, DUOL, ADBE positions</li>
+        </ol>
+    </div>
+    
+    <div class="test-section">
+        <h2>🎯 Expected Results</h2>
+        <ul>
+            <li>Options notional = qty * underlying_price * 100</li>
+            <li>Combined rows show total value and notional for equity + options</li>
+            <li>Expandable rows show individual positions with percentages in public mode</li>
+            <li>AI Victims trade has red color like other hedges</li>
+        </ul>
+    </div>
+</body>
+</html>

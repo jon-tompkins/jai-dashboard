@@ -12,7 +12,8 @@ const TRADE_COLORS = {
   'defense-drones': '#a371f7',
   'crypto-core': '#8957e5',
   'tech-semis': '#79c0ff',
-  'hedges': '#da3633'
+  'hedges': '#da3633',
+  'ai-victims': '#da3633'
 };
 
 const styles = {
@@ -41,7 +42,10 @@ const styles = {
   summaryGrid: { display: 'grid', gridTemplateColumns: '200px 1fr', gap: '24px', alignItems: 'start' },
 };
 
-function formatMoney(n) { return '$' + (n || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
+function formatMoney(n) { 
+  if (publicScreenshot) return '***';
+  return '$' + (n || 0).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); 
+}
 function formatPct(n) { return (n >= 0 ? '+' : '') + (n * 100).toFixed(1) + '%'; }
 function renderMarkdown(text) {
   if (!text) return '';
@@ -62,6 +66,110 @@ function ConvictionDots({ level }) {
         <div key={i} style={i <= (level || 0) ? styles.convictionDotFilled : styles.convictionDot} />
       ))}
     </div>
+  );
+}
+
+function HoldingsRow({ holding, s, publicScreenshot, formatMoney, formatPct }) {
+  const [expanded, setExpanded] = useState(false);
+  
+  return (
+    <React.Fragment>
+      <tr style={{ cursor: holding.expandable ? 'pointer' : 'default' }} onClick={() => holding.expandable && setExpanded(!expanded)}>
+        <td style={styles.td}>
+          <strong>{holding.symbol}</strong>
+          {holding.expandable && <span style={{ marginLeft: '8px', color: '#8b949e' }}>{expanded ? '▼' : '▶'}</span>}
+        </td>
+        <td style={styles.td}>
+          <span style={{...styles.tag, background: 
+            holding.type === 'EQUITY' ? '#238636' :
+            holding.type === 'CRYPTO' ? '#8957e5' :
+            holding.type === 'CASH' ? '#8b949e' :
+            holding.type === 'OPTIONS' ? '#d29922' : '#a371f7'
+          }}>{holding.type}</span>
+        </td>
+        <td style={styles.td}>${holding.price?.toFixed(2)}</td>
+        <td style={styles.td}>{formatMoney(holding.value)}</td>
+        <td style={styles.td}>{formatMoney(holding.notional)}</td>
+        <td style={{...styles.td, ...(holding.pl >= 0 ? styles.green : styles.red)}}>
+          {formatMoney(holding.pl)} ({formatPct(holding.plPct)})
+        </td>
+        <td style={styles.td}>
+          {publicScreenshot && holding.data && (
+            <span style={{ color: '#8b949e', fontSize: '11px' }}>
+              {holding.type === 'EQUITY' && `${((holding.data.units * holding.data.price) / s.total * 100).toFixed(1)}%`}
+              {holding.type === 'CRYPTO' && `${(holding.data.value / s.total * 100).toFixed(1)}%`}
+              {holding.type === 'CASH' && `${(holding.data.value / s.total * 100).toFixed(1)}%`}
+              {holding.type === 'OPTIONS' && `${(holding.data.value / s.total * 100).toFixed(1)}%`}
+              {holding.type === 'COMBINED' && `${(holding.data.value / s.total * 100).toFixed(1)}%`}
+            </span>
+          )}
+        </td>
+      </tr>
+      {expanded && holding.expandable && (
+        <tr>
+          <td colSpan="7" style={{...styles.td, background: '#0d1117', padding: '12px' }}>
+            <table style={{...styles.table, margin: 0, fontSize: '12px' }}>
+              <tbody>
+                {holding.data.equity && (
+                  <tr>
+                    <td style={{...styles.td, border: 'none', padding: '4px 8px' }}>
+                      <span style={{...styles.tag, background: '#238636', fontSize: '10px' }}>EQUITY</span>
+                      <strong>{holding.data.equity.symbol}</strong>
+                    </td>
+                    <td style={{...styles.td, border: 'none', padding: '4px 8px' }}>
+                      {publicScreenshot ? 
+                        `${(holding.data.equity.value / holding.data.value * 100).toFixed(1)}%` :
+                        `${holding.data.equity.units} shares`
+                      }
+                    </td>
+                    <td style={{...styles.td, border: 'none', padding: '4px 8px' }}>
+                      ${holding.data.equity.price?.toFixed(2)}
+                    </td>
+                    <td style={{...styles.td, border: 'none', padding: '4px 8px' }}>
+                      {formatMoney(holding.data.equity.value)}
+                    </td>
+                    <td style={{...styles.td, border: 'none', padding: '4px 8px' }}>
+                      {formatMoney(holding.data.equity.value)}
+                    </td>
+                    <td style={{...styles.td, border: 'none', padding: '4px 8px', ...(holding.data.equity.pl >= 0 ? styles.green : styles.red) }}>
+                      {formatMoney(holding.data.equity.pl)} ({formatPct(holding.data.equity.plPct)})
+                    </td>
+                  </tr>
+                )}
+                {holding.data.options?.map((o, j) => (
+                  <tr key={j}>
+                    <td style={{...styles.td, border: 'none', padding: '4px 8px' }}>
+                      <span style={{...styles.tag, background: o.type === 'CALL' ? '#238636' : '#da3633', fontSize: '10px' }}>
+                        {o.type}
+                      </span>
+                      <strong>{o.contract}</strong>
+                    </td>
+                    <td style={{...styles.td, border: 'none', padding: '4px 8px' }}>
+                      {publicScreenshot ? 
+                        `${(o.value / holding.data.value * 100).toFixed(1)}%` :
+                        `${o.qty} contracts`
+                      }
+                    </td>
+                    <td style={{...styles.td, border: 'none', padding: '4px 8px' }}>
+                      ${o.strike}
+                    </td>
+                    <td style={{...styles.td, border: 'none', padding: '4px 8px' }}>
+                      {formatMoney(o.value)}
+                    </td>
+                    <td style={{...styles.td, border: 'none', padding: '4px 8px' }}>
+                      {formatMoney(o.notional)}
+                    </td>
+                    <td style={{...styles.td, border: 'none', padding: '4px 8px' }}>
+                      {formatMoney(o.value)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </td>
+        </tr>
+      )}
+    </React.Fragment>
   );
 }
 
@@ -116,6 +224,7 @@ export default function Dashboard() {
   const [showWorkoutForm, setShowWorkoutForm] = useState(false);
   const [workoutForm, setWorkoutForm] = useState({ date: new Date().toISOString().split('T')[0], type: 'upper', description: '', body_weight: '', duration_min: '', notes: '', trackedMetrics: [] });
   const [workoutFilter, setWorkoutFilter] = useState({ type: 'all', tracked: 'all' });
+  const [publicScreenshot, setPublicScreenshot] = useState(false);
 
   useEffect(() => { fetchFitness(); fetchWorkoutLogs(); }, []);
 
@@ -276,7 +385,26 @@ export default function Dashboard() {
     <div style={styles.container}>
       <div style={styles.header}>
         <h1 style={{ fontSize: '24px', margin: 0 }}>⚡ Jai Dashboard</h1>
-        <div style={{ color: '#8b949e' }}>{new Date().toLocaleDateString()}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button
+            onClick={() => setPublicScreenshot(!publicScreenshot)}
+            style={{
+              padding: '6px 12px',
+              background: publicScreenshot ? '#238636' : '#21262d',
+              border: `1px solid ${publicScreenshot ? '#238636' : '#30363d'}`,
+              borderRadius: '6px',
+              color: '#e6edf3',
+              cursor: 'pointer',
+              fontSize: '12px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            {publicScreenshot ? '👁️' : '👁️‍🗨️'} Public Screenshot
+          </button>
+          <div style={{ color: '#8b949e' }}>{new Date().toLocaleDateString()}</div>
+        </div>
       </div>
 
       <div style={styles.tabs}>
@@ -322,67 +450,247 @@ export default function Dashboard() {
             </div>
           </div>
 
+          {/* Unified Holdings Table */}
           <div style={{...styles.card, marginTop: '16px'}}>
             <div style={styles.cardTitle}>
-              <span>📈 Equities ({portfolio?.equities?.length || 0})</span>
-              <span style={{ fontSize: '16px', fontWeight: '600' }}>{formatMoney(s.equities)}</span>
+              <span>📊 All Holdings</span>
+              <span style={{ fontSize: '16px', fontWeight: '600' }}>{formatMoney(s.total)}</span>
             </div>
             <table style={styles.table}>
-              <thead><tr><th style={styles.th}>Symbol</th><th style={styles.th}>Shares</th><th style={styles.th}>Price</th><th style={styles.th}>Value</th><th style={styles.th}>P/L</th></tr></thead>
+              <thead>
+                <tr>
+                  <th style={styles.th}>Symbol</th>
+                  <th style={styles.th}>Type</th>
+                  <th style={styles.th}>Price</th>
+                  <th style={styles.th}>Value</th>
+                  <th style={styles.th}>Notional</th>
+                  <th style={styles.th}>P/L</th>
+                  <th style={styles.th}></th>
+                </tr>
+              </thead>
               <tbody>
-                {portfolio?.equities?.map(e => (
-                  <tr key={e.symbol + e.units}>
-                    <td style={styles.td}><strong>{e.symbol}</strong></td>
-                    <td style={styles.td}>{e.units}</td>
-                    <td style={styles.td}>${e.price?.toFixed(2)}</td>
-                    <td style={styles.td}>{formatMoney(e.value)}</td>
-                    <td style={{...styles.td, ...(e.pl >= 0 ? styles.green : styles.red)}}>{formatMoney(e.pl)} ({formatPct(e.plPct)})</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div style={{...styles.card, marginTop: '16px'}}>
-            <div style={styles.cardTitle}>
-              <span>🪙 Crypto ({portfolio?.crypto?.length || 0})</span>
-              <span style={{ fontSize: '16px', fontWeight: '600' }}>{formatMoney(s.crypto)}</span>
-            </div>
-            <table style={styles.table}>
-              <thead><tr><th style={styles.th}>Symbol</th><th style={styles.th}>Units</th><th style={styles.th}>Price</th><th style={styles.th}>Value</th><th style={styles.th}>P/L</th></tr></thead>
-              <tbody>
-                {portfolio?.crypto?.map(c => (
-                  <tr key={c.symbol}>
-                    <td style={styles.td}><strong>{c.symbol}</strong></td>
-                    <td style={styles.td}>{c.units?.toFixed(c.units < 10 ? 4 : 2)}</td>
-                    <td style={styles.td}>${c.price?.toLocaleString()}</td>
-                    <td style={styles.td}>{formatMoney(c.value)}</td>
-                    <td style={{...styles.td, ...(c.pl >= 0 ? styles.green : styles.red)}}>{formatMoney(c.pl)} ({formatPct(c.plPct)})</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div style={{...styles.card, marginTop: '16px'}}>
-            <div style={styles.cardTitle}>
-              <span>📊 Options ({portfolio?.options?.length || 0})</span>
-              <span style={{ fontSize: '16px', fontWeight: '600' }}>{formatMoney(s.options)}</span>
-            </div>
-            <table style={styles.table}>
-              <thead><tr><th style={styles.th}>Contract</th><th style={styles.th}>Type</th><th style={styles.th}>Strike</th><th style={styles.th}>Expiry</th><th style={styles.th}>Qty</th><th style={styles.th}>Value</th><th style={styles.th}>Status</th></tr></thead>
-              <tbody>
-                {portfolio?.options?.sort((a,b) => a.daysToExpiry - b.daysToExpiry).map(o => (
-                  <tr key={o.contract}>
-                    <td style={styles.td}><strong>{o.symbol}</strong></td>
-                    <td style={styles.td}><span style={{...styles.tag, background: o.type === 'CALL' ? '#238636' : '#da3633'}}>{o.type}</span></td>
-                    <td style={styles.td}>${o.strike}</td>
-                    <td style={styles.td}>{o.expiry} <span style={{color: '#8b949e'}}>({o.daysToExpiry}d)</span></td>
-                    <td style={styles.td}>{o.qty}</td>
-                    <td style={styles.td}>{formatMoney(o.value)}</td>
-                    <td style={styles.td}><span style={{...styles.tag, background: o.status === 'IN' ? '#238636' : '#30363d'}}>{o.status}</span></td>
-                  </tr>
-                ))}
+                {(() => {
+                  // Combine all holdings
+                  const holdings = [];
+                  
+                  // Add cash
+                  portfolio?.cash?.forEach(c => {
+                    holdings.push({
+                      symbol: c.symbol,
+                      type: 'CASH',
+                      price: 1,
+                      value: c.value,
+                      notional: c.value,
+                      pl: c.pl,
+                      plPct: c.plPct,
+                      expandable: false,
+                      data: c
+                    });
+                  });
+                  
+                  // Group options by underlying
+                  const optionsByUnderlying = {};
+                  portfolio?.options?.forEach(o => {
+                    if (!optionsByUnderlying[o.symbol]) {
+                      optionsByUnderlying[o.symbol] = {
+                        symbol: o.symbol,
+                        type: 'OPTIONS',
+                        price: o.underlyingPrice,
+                        value: 0,
+                        notional: 0,
+                        pl: 0,
+                        options: [],
+                        hasEquity: false
+                      };
+                    }
+                    optionsByUnderlying[o.symbol].value += o.value;
+                    optionsByUnderlying[o.symbol].notional += o.notional;
+                    optionsByUnderlying[o.symbol].pl += o.value; // Options P/L is already in value
+                    optionsByUnderlying[o.symbol].options.push(o);
+                  });
+                  
+                  // Check which underlyings have equity positions
+                  portfolio?.equities?.forEach(e => {
+                    if (optionsByUnderlying[e.symbol]) {
+                      optionsByUnderlying[e.symbol].hasEquity = true;
+                    }
+                  });
+                  
+                  // Add equities
+                  portfolio?.equities?.forEach(e => {
+                    if (optionsByUnderlying[e.symbol]) {
+                      // This equity has options, create a combined row
+                      const combined = optionsByUnderlying[e.symbol];
+                      combined.equity = e;
+                      combined.value += e.value;
+                      combined.notional += e.value;
+                      combined.pl += e.pl;
+                      combined.plPct = (combined.pl / (e.value - e.pl + combined.value - combined.pl)) || 0;
+                      holdings.push({
+                        symbol: e.symbol,
+                        type: 'COMBINED',
+                        price: e.price,
+                        value: combined.value,
+                        notional: combined.notional,
+                        pl: combined.pl,
+                        plPct: combined.plPct,
+                        expandable: true,
+                        data: combined
+                      });
+                      delete optionsByUnderlying[e.symbol];
+                    } else {
+                      // Pure equity position
+                      holdings.push({
+                        symbol: e.symbol,
+                        type: 'EQUITY',
+                        price: e.price,
+                        value: e.value,
+                        notional: e.value,
+                        pl: e.pl,
+                        plPct: e.plPct,
+                        expandable: false,
+                        data: e
+                      });
+                    }
+                  });
+                  
+                  // Add remaining options (without equity)
+                  Object.values(optionsByUnderlying).forEach(group => {
+                    holdings.push({
+                      symbol: group.symbol,
+                      type: 'OPTIONS',
+                      price: group.price,
+                      value: group.value,
+                      notional: group.notional,
+                      pl: group.pl,
+                      plPct: 0,
+                      expandable: true,
+                      data: group
+                    });
+                  });
+                  
+                  // Add crypto
+                  portfolio?.crypto?.forEach(c => {
+                    holdings.push({
+                      symbol: c.symbol,
+                      type: 'CRYPTO',
+                      price: c.price,
+                      value: c.value,
+                      notional: c.value,
+                      pl: c.pl,
+                      plPct: c.plPct,
+                      expandable: false,
+                      data: c
+                    });
+                  });
+                  
+                  // Sort by value descending
+                  holdings.sort((a, b) => b.value - a.value);
+                  
+                  return holdings.map((h, i) => (
+                    <HoldingsRow 
+                      key={i} 
+                      holding={h} 
+                      s={s} 
+                      publicScreenshot={publicScreenshot}
+                      formatMoney={formatMoney}
+                      formatPct={formatPct}
+                    />
+                  ));
+                          <td style={styles.td}>
+                            <span style={{...styles.tag, background: 
+                              h.type === 'EQUITY' ? '#238636' :
+                              h.type === 'CRYPTO' ? '#8957e5' :
+                              h.type === 'CASH' ? '#8b949e' :
+                              h.type === 'OPTIONS' ? '#d29922' : '#a371f7'
+                            }}>{h.type}</span>
+                          </td>
+                          <td style={styles.td}>${h.price?.toFixed(2)}</td>
+                          <td style={styles.td}>{formatMoney(h.value)}</td>
+                          <td style={styles.td}>{formatMoney(h.notional)}</td>
+                          <td style={{...styles.td, ...(h.pl >= 0 ? styles.green : styles.red)}}>
+                            {formatMoney(h.pl)} ({formatPct(h.plPct)})
+                          </td>
+                          <td style={styles.td}>
+                            {publicScreenshot && h.data && (
+                              <span style={{ color: '#8b949e', fontSize: '11px' }}>
+                                {h.type === 'EQUITY' && `${((h.data.units * h.data.price) / s.total * 100).toFixed(1)}%`}
+                                {h.type === 'CRYPTO' && `${(h.data.value / s.total * 100).toFixed(1)}%`}
+                                {h.type === 'CASH' && `${(h.data.value / s.total * 100).toFixed(1)}%`}
+                                {h.type === 'OPTIONS' && `${(h.data.value / s.total * 100).toFixed(1)}%`}
+                                {h.type === 'COMBINED' && `${(h.data.value / s.total * 100).toFixed(1)}%`}
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                        {expanded && h.expandable && (
+                          <tr>
+                            <td colSpan="7" style={{...styles.td, background: '#0d1117', padding: '12px' }}>
+                              <table style={{...styles.table, margin: 0, fontSize: '12px' }}>
+                                <tbody>
+                                  {h.data.equity && (
+                                    <tr>
+                                      <td style={{...styles.td, border: 'none', padding: '4px 8px' }}>
+                                        <span style={{...styles.tag, background: '#238636', fontSize: '10px' }}>EQUITY</span>
+                                        <strong>{h.data.equity.symbol}</strong>
+                                      </td>
+                                      <td style={{...styles.td, border: 'none', padding: '4px 8px' }}>
+                                        {publicScreenshot ? 
+                                          `${(h.data.equity.units / h.data.value * 100).toFixed(1)}%` :
+                                          `${h.data.equity.units} shares`
+                                        }
+                                      </td>
+                                      <td style={{...styles.td, border: 'none', padding: '4px 8px' }}>
+                                        ${h.data.equity.price?.toFixed(2)}
+                                      </td>
+                                      <td style={{...styles.td, border: 'none', padding: '4px 8px' }}>
+                                        {formatMoney(h.data.equity.value)}
+                                      </td>
+                                      <td style={{...styles.td, border: 'none', padding: '4px 8px' }}>
+                                        {formatMoney(h.data.equity.value)}
+                                      </td>
+                                      <td style={{...styles.td, border: 'none', padding: '4px 8px', ...(h.data.equity.pl >= 0 ? styles.green : styles.red) }}>
+                                        {formatMoney(h.data.equity.pl)} ({formatPct(h.data.equity.plPct)})
+                                      </td>
+                                    </tr>
+                                  )}
+                                  {h.data.options?.map((o, j) => (
+                                    <tr key={j}>
+                                      <td style={{...styles.td, border: 'none', padding: '4px 8px' }}>
+                                        <span style={{...styles.tag, background: o.type === 'CALL' ? '#238636' : '#da3633', fontSize: '10px' }}>
+                                          {o.type}
+                                        </span>
+                                        <strong>{o.contract}</strong>
+                                      </td>
+                                      <td style={{...styles.td, border: 'none', padding: '4px 8px' }}>
+                                        {publicScreenshot ? 
+                                          `${(o.value / h.data.value * 100).toFixed(1)}%` :
+                                          `${o.qty} contracts`
+                                        }
+                                      </td>
+                                      <td style={{...styles.td, border: 'none', padding: '4px 8px' }}>
+                                        ${o.strike}
+                                      </td>
+                                      <td style={{...styles.td, border: 'none', padding: '4px 8px' }}>
+                                        {formatMoney(o.value)}
+                                      </td>
+                                      <td style={{...styles.td, border: 'none', padding: '4px 8px' }}>
+                                        {formatMoney(o.notional)}
+                                      </td>
+                                      <td style={{...styles.td, border: 'none', padding: '4px 8px' }}>
+                                        {formatMoney(o.value)}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  });
+                })()}
               </tbody>
             </table>
           </div>

@@ -69,7 +69,8 @@ export async function GET() {
       value: (parseFloat(row.Price) || 0) * (parseFloat(row.Units) || 0) * 100,
       underlyingPrice: parseFloat(row.UnderPrc) || 0,
       daysToExpiry: parseInt(row['Days till']) || 0,
-      status: row['in/out']
+      status: row['in/out'],
+      notional: (parseFloat(row.Units) || 0) * (parseFloat(row.UnderPrc) || 0) * 100
     }));
 
     // Calculate totals
