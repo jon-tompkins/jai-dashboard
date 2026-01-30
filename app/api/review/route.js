@@ -1,22 +1,41 @@
-import { readFileSync, readdirSync, statSync } from 'fs';
-import { join, extname, basename } from 'path';
+import { readFileSync, statSync } from 'fs';
+import { join } from 'path';
 import { homedir } from 'os';
 
 export const dynamic = 'force-dynamic';
 
 // Files to expose for review
 const REVIEW_FILES = [
-  // Content
-  { path: '~/clawd/content/twitter-drafts.md', name: 'Twitter Drafts', category: 'Content' },
-  // Research
-  { path: '~/clawd/research/irl-trade-2026-01-30.md', name: 'The IRL Trade', category: 'Research' },
-  // myjunto
-  { path: '~/clawd/myjunto/PRODUCT_PLAN.md', name: 'Product Plan', category: 'myjunto' },
-  { path: '~/clawd/myjunto/prompts/professional-v1.md', name: 'Prompt v1', category: 'myjunto' },
-  { path: '~/clawd/myjunto/prompts/original-backup.md', name: 'Original Prompt', category: 'myjunto' },
-  // Memory/Notes
-  { path: '~/clawd/MEMORY.md', name: 'Memory', category: 'Notes' },
-  { path: '~/clawd/AGENTS.md', name: 'Agents Guide', category: 'Notes' },
+  { 
+    path: '~/clawd/content/twitter-drafts.md', 
+    name: 'Twitter Drafts', 
+    category: 'Content',
+    publicFile: 'twitter-drafts.md'
+  },
+  { 
+    path: '~/clawd/research/irl-trade-2026-01-30.md', 
+    name: 'The IRL Trade', 
+    category: 'Research',
+    publicFile: 'irl-trade-2026-01-30.md'
+  },
+  { 
+    path: '~/clawd/myjunto/PRODUCT_PLAN.md', 
+    name: 'Product Plan', 
+    category: 'myjunto',
+    publicFile: 'PRODUCT_PLAN.md'
+  },
+  { 
+    path: '~/clawd/MEMORY.md', 
+    name: 'Memory', 
+    category: 'Notes',
+    publicFile: 'MEMORY.md'
+  },
+  { 
+    path: '~/clawd/AGENTS.md', 
+    name: 'Agents Guide', 
+    category: 'Notes',
+    publicFile: 'AGENTS.md'
+  },
 ];
 
 function expandPath(p) {
@@ -26,26 +45,26 @@ function expandPath(p) {
   return p;
 }
 
-function getFileInfo(filePath, name, category) {
+function tryReadLocal(filePath) {
   try {
     const fullPath = expandPath(filePath);
     const stats = statSync(fullPath);
-    return {
-      path: filePath,
-      name,
-      category,
-      size: stats.size,
-      modified: stats.mtime.toISOString(),
-      exists: true
-    };
+    const content = readFileSync(fullPath, 'utf-8');
+    return { exists: true, content, size: stats.size, modified: stats.mtime.toISOString() };
   } catch (e) {
-    return {
-      path: filePath,
-      name,
-      category,
-      exists: false,
-      error: e.message
-    };
+    return { exists: false };
+  }
+}
+
+function tryReadPublic(publicFile) {
+  try {
+    // In Next.js, public files are in process.cwd()/public
+    const publicPath = join(process.cwd(), 'public', 'review-files', publicFile);
+    const stats = statSync(publicPath);
+    const content = readFileSync(publicPath, 'utf-8');
+    return { exists: true, content, size: stats.size, modified: stats.mtime.toISOString() };
+  } catch (e) {
+    return { exists: false };
   }
 }
 
@@ -55,29 +74,59 @@ export async function GET(request) {
 
   // If file is requested, return its contents
   if (filePath) {
-    try {
-      // Security: only allow files in our whitelist
-      const allowed = REVIEW_FILES.find(f => f.path === filePath);
-      if (!allowed) {
-        return Response.json({ error: 'File not allowed' }, { status: 403 });
-      }
+    const fileConfig = REVIEW_FILES.find(f => f.path === filePath);
+    if (!fileConfig) {
+      return Response.json({ error: 'File not allowed' }, { status: 403 });
+    }
 
-      const fullPath = expandPath(filePath);
-      const content = readFileSync(fullPath, 'utf-8');
-      
+    // Try local first (for dev/local running)
+    const local = tryReadLocal(filePath);
+    if (local.exists) {
       return Response.json({
         path: filePath,
-        name: allowed.name,
-        content,
-        size: content.length
+        name: fileConfig.name,
+        content: local.content,
+        size: local.size,
+        source: 'local'
       });
-    } catch (error) {
-      return Response.json({ error: error.message }, { status: 500 });
     }
+
+    // Try public folder (for Vercel deployment)
+    if (fileConfig.publicFile) {
+      const pub = tryReadPublic(fileConfig.publicFile);
+      if (pub.exists) {
+        return Response.json({
+          path: filePath,
+          name: fileConfig.name,
+          content: pub.content,
+          size: pub.size,
+          source: 'public'
+        });
+      }
+    }
+
+    return Response.json({ 
+      error: 'File not available',
+      path: filePath 
+    }, { status: 404 });
   }
 
-  // Otherwise return list of available files
-  const files = REVIEW_FILES.map(f => getFileInfo(f.path, f.name, f.category));
-  
+  // Return list of available files
+  const files = REVIEW_FILES.map(f => {
+    const local = tryReadLocal(f.path);
+    if (local.exists) {
+      return { path: f.path, name: f.name, category: f.category, size: local.size, modified: local.modified, exists: true };
+    }
+    
+    if (f.publicFile) {
+      const pub = tryReadPublic(f.publicFile);
+      if (pub.exists) {
+        return { path: f.path, name: f.name, category: f.category, size: pub.size, modified: pub.modified, exists: true };
+      }
+    }
+    
+    return { path: f.path, name: f.name, category: f.category, exists: false };
+  });
+
   return Response.json({ files: files.filter(f => f.exists) });
 }

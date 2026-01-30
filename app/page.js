@@ -284,6 +284,318 @@ function PieChart({ data }) {
   );
 }
 
+// Helper to format task age
+function formatTaskAge(dateStr) {
+  if (!dateStr) return '';
+  const created = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now - created;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+  
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return created.toLocaleDateString();
+}
+
+// Task Card Component with inline editing
+function TaskCard({ task, status, updateTask, deleteTask, styles }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(task.title);
+  const [editDesc, setEditDesc] = useState(task.description || '');
+  const [showMoveMenu, setShowMoveMenu] = useState(false);
+
+  const saveEdit = () => {
+    updateTask(task.id, { title: editTitle, description: editDesc });
+    setIsEditing(false);
+  };
+
+  const cancelEdit = () => {
+    setEditTitle(task.title);
+    setEditDesc(task.description || '');
+    setIsEditing(false);
+  };
+
+  const moveTask = (newStatus) => {
+    updateTask(task.id, { status: newStatus });
+    setShowMoveMenu(false);
+  };
+
+  const priorityColor = task.priority === 'high' ? '#da3633' : task.priority === 'medium' ? '#d29922' : '#238636';
+  const assigneeColor = task.assignee === 'scout' ? '#8957e5' : '#d29922';
+
+  return (
+    <div 
+      style={{ 
+        padding: '12px', 
+        background: '#161b22', 
+        border: `1px solid ${task.priority === 'high' ? '#da3633' : '#30363d'}`, 
+        borderRadius: '6px',
+        borderLeft: `3px solid ${priorityColor}`,
+      }}
+    >
+      {isEditing ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <input
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
+            style={{ padding: '8px', background: '#0d1117', border: '1px solid #30363d', borderRadius: '4px', color: '#e6edf3', fontSize: '14px', fontWeight: 500 }}
+            autoFocus
+          />
+          <textarea
+            value={editDesc}
+            onChange={(e) => setEditDesc(e.target.value)}
+            placeholder="Description..."
+            style={{ padding: '8px', background: '#0d1117', border: '1px solid #30363d', borderRadius: '4px', color: '#e6edf3', fontSize: '12px', minHeight: '50px', resize: 'vertical' }}
+          />
+          <div style={{ display: 'flex', gap: '6px' }}>
+            <button onClick={saveEdit} style={{ padding: '4px 10px', background: '#238636', border: 'none', borderRadius: '4px', color: '#fff', cursor: 'pointer', fontSize: '12px' }}>Save</button>
+            <button onClick={cancelEdit} style={{ padding: '4px 10px', background: '#21262d', border: '1px solid #30363d', borderRadius: '4px', color: '#e6edf3', cursor: 'pointer', fontSize: '12px' }}>Cancel</button>
+          </div>
+        </div>
+      ) : (
+        <>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+            <div style={{ fontWeight: 500, flex: 1, cursor: 'pointer' }} onClick={() => setIsEditing(true)}>{task.title}</div>
+            <div style={{ display: 'flex', gap: '4px' }}>
+              <button 
+                onClick={() => setIsEditing(true)} 
+                title="Edit"
+                style={{ padding: '2px 6px', background: 'transparent', border: 'none', color: '#8b949e', cursor: 'pointer', fontSize: '12px' }}
+              >✏️</button>
+              <button 
+                onClick={() => deleteTask(task.id)} 
+                title="Delete"
+                style={{ padding: '2px 6px', background: 'transparent', border: 'none', color: '#f85149', cursor: 'pointer', fontSize: '12px' }}
+              >🗑️</button>
+            </div>
+          </div>
+          {task.description && (
+            <div 
+              style={{ fontSize: '12px', color: '#8b949e', marginBottom: '8px', cursor: 'pointer' }} 
+              onClick={() => setIsEditing(true)}
+            >
+              {task.description.slice(0, 120)}{task.description.length > 120 ? '...' : ''}
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '6px' }}>
+            {task.assignee && <span style={{...styles.tag, background: assigneeColor}}>{task.assignee === 'scout' ? '🔭' : '🔨'} {task.assignee}</span>}
+            <span style={{...styles.tag, background: priorityColor, fontSize: '10px'}}>{task.priority}</span>
+            {task.session_key && <span style={{ fontSize: '10px', color: '#3fb950' }}>⚡ Running</span>}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: '10px', color: '#6e7681' }}>{formatTaskAge(task.created_at)}</span>
+            <div style={{ position: 'relative' }}>
+              <button 
+                onClick={() => setShowMoveMenu(!showMoveMenu)}
+                style={{ padding: '4px 8px', background: '#21262d', border: '1px solid #30363d', borderRadius: '4px', color: '#e6edf3', cursor: 'pointer', fontSize: '11px' }}
+              >
+                Move →
+              </button>
+              {showMoveMenu && (
+                <div style={{ 
+                  position: 'absolute', 
+                  right: 0, 
+                  top: '100%', 
+                  marginTop: '4px',
+                  background: '#161b22', 
+                  border: '1px solid #30363d', 
+                  borderRadius: '6px', 
+                  zIndex: 100,
+                  minWidth: '120px',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.4)'
+                }}>
+                  {['backlog', 'ready', 'in_progress', 'done'].filter(s => s !== status).map(s => (
+                    <div 
+                      key={s} 
+                      onClick={() => moveTask(s)}
+                      style={{ 
+                        padding: '8px 12px', 
+                        cursor: 'pointer', 
+                        fontSize: '12px',
+                        borderBottom: '1px solid #30363d',
+                        color: '#e6edf3'
+                      }}
+                      onMouseEnter={(e) => e.target.style.background = '#21262d'}
+                      onMouseLeave={(e) => e.target.style.background = 'transparent'}
+                    >
+                      {s === 'in_progress' ? '🔄 In Progress' : s === 'backlog' ? '📥 Backlog' : s === 'ready' ? '✅ Ready' : '✨ Done'}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          {task.result && (
+            <div style={{ marginTop: '8px', padding: '8px', background: '#0d1117', borderRadius: '4px', fontSize: '11px', color: '#8b949e' }}>
+              <strong>Result:</strong> {task.result.slice(0, 150)}{task.result.length > 150 ? '...' : ''}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// Full Kanban Board Component
+function KanbanBoard({ kanban, newTask, setNewTask, addTask, updateTask, deleteTask, fetchKanban, styles }) {
+  const [showAddForm, setShowAddForm] = useState(false);
+
+  const columns = [
+    { id: 'backlog', label: '📥 Backlog', color: '#8b949e' },
+    { id: 'ready', label: '✅ Ready', color: '#58a6ff' },
+    { id: 'in_progress', label: '🔄 In Progress', color: '#d29922' },
+    { id: 'done', label: '✨ Done', color: '#3fb950' },
+  ];
+
+  const handleAddTask = () => {
+    addTask();
+    setShowAddForm(false);
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {/* Header with stats */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          {columns.map(col => (
+            <div key={col.id} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: col.color }} />
+              <span style={{ fontSize: '12px', color: '#8b949e' }}>{kanban.summary?.[col.id] || 0}</span>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button 
+            style={{...styles.btn, background: showAddForm ? '#21262d' : '#238636'}} 
+            onClick={() => setShowAddForm(!showAddForm)}
+          >
+            {showAddForm ? '✕ Cancel' : '➕ Add Task'}
+          </button>
+          <button style={styles.btn} onClick={fetchKanban}>🔄</button>
+        </div>
+      </div>
+
+      {/* Add Task Form - Collapsible */}
+      {showAddForm && (
+        <div style={{...styles.card, background: '#0d1117', border: '1px solid #238636'}}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <input 
+              placeholder="Task title..."
+              value={newTask.title}
+              onChange={(e) => setNewTask({...newTask, title: e.target.value})}
+              onKeyDown={(e) => e.key === 'Enter' && newTask.title && handleAddTask()}
+              style={{ padding: '10px', background: '#161b22', border: '1px solid #30363d', borderRadius: '6px', color: '#e6edf3', fontSize: '14px' }}
+              autoFocus
+            />
+            <textarea 
+              placeholder="Description (optional)..."
+              value={newTask.description}
+              onChange={(e) => setNewTask({...newTask, description: e.target.value})}
+              style={{ padding: '10px', background: '#161b22', border: '1px solid #30363d', borderRadius: '6px', color: '#e6edf3', fontSize: '14px', minHeight: '60px', resize: 'vertical' }}
+            />
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+              <select 
+                value={newTask.assignee || ''}
+                onChange={(e) => setNewTask({...newTask, assignee: e.target.value || null})}
+                style={{ padding: '8px', background: '#161b22', border: '1px solid #30363d', borderRadius: '6px', color: '#e6edf3', minHeight: '40px' }}
+              >
+                <option value="">Unassigned</option>
+                <option value="scout">🔭 Scout</option>
+                <option value="builder">🔨 Builder</option>
+              </select>
+              <select 
+                value={newTask.priority}
+                onChange={(e) => setNewTask({...newTask, priority: e.target.value})}
+                style={{ padding: '8px', background: '#161b22', border: '1px solid #30363d', borderRadius: '6px', color: '#e6edf3', minHeight: '40px' }}
+              >
+                <option value="low">🟢 Low</option>
+                <option value="medium">🟡 Medium</option>
+                <option value="high">🔴 High</option>
+              </select>
+              <button 
+                style={{...styles.btn, background: '#238636', opacity: newTask.title ? 1 : 0.5}} 
+                onClick={handleAddTask}
+                disabled={!newTask.title}
+              >
+                Add Task
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Kanban Columns - Stack vertically on mobile */}
+      <div className="kanban-board" style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
+        gap: '12px',
+      }}>
+        {columns.map(col => {
+          const tasks = kanban.tasks?.filter(t => t.status === col.id) || [];
+          return (
+            <div 
+              key={col.id} 
+              style={{
+                ...styles.card, 
+                background: '#0d1117',
+                borderTop: `3px solid ${col.color}`,
+                minHeight: '200px',
+              }}
+            >
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center', 
+                marginBottom: '12px',
+                paddingBottom: '8px',
+                borderBottom: '1px solid #21262d'
+              }}>
+                <span style={{ fontWeight: 600, fontSize: '14px' }}>{col.label}</span>
+                <span style={{
+                  ...styles.tag, 
+                  background: col.color + '33', 
+                  color: col.color,
+                  fontWeight: 600
+                }}>
+                  {tasks.length}
+                </span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {tasks.map(task => (
+                  <TaskCard 
+                    key={task.id} 
+                    task={task} 
+                    status={col.id}
+                    updateTask={updateTask} 
+                    deleteTask={deleteTask}
+                    styles={styles}
+                  />
+                ))}
+                {tasks.length === 0 && (
+                  <div style={{ 
+                    padding: '20px', 
+                    color: '#6e7681', 
+                    fontSize: '13px', 
+                    textAlign: 'center',
+                    background: '#161b2211',
+                    borderRadius: '6px',
+                    border: '1px dashed #30363d'
+                  }}>
+                    No tasks
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const [tab, setTab] = useState('portfolio');
   const [portfolio, setPortfolio] = useState(null);
@@ -516,6 +828,14 @@ export default function Dashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, ...updates })
       });
+      fetchKanban();
+    } catch (e) { console.error(e); }
+  }
+
+  async function deleteTask(id) {
+    if (!confirm('Delete this task?')) return;
+    try {
+      await fetch(`/api/kanban?id=${id}`, { method: 'DELETE' });
       fetchKanban();
     } catch (e) { console.error(e); }
   }
@@ -1605,90 +1925,16 @@ export default function Dashboard() {
       )}
 
       {tab === 'tasks' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {/* Add Task Form */}
-          <div style={styles.card}>
-            <div style={styles.cardTitle}>
-              <span>➕ Add Task</span>
-              <button style={styles.btn} onClick={fetchKanban}>🔄 Refresh</button>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <input 
-                placeholder="Task title..."
-                value={newTask.title}
-                onChange={(e) => setNewTask({...newTask, title: e.target.value})}
-                style={{ padding: '10px', background: '#0d1117', border: '1px solid #30363d', borderRadius: '6px', color: '#e6edf3', fontSize: '14px' }}
-              />
-              <textarea 
-                placeholder="Description (optional)..."
-                value={newTask.description}
-                onChange={(e) => setNewTask({...newTask, description: e.target.value})}
-                style={{ padding: '10px', background: '#0d1117', border: '1px solid #30363d', borderRadius: '6px', color: '#e6edf3', fontSize: '14px', minHeight: '60px' }}
-              />
-              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                <select 
-                  value={newTask.assignee || ''}
-                  onChange={(e) => setNewTask({...newTask, assignee: e.target.value || null})}
-                  style={{ padding: '8px', background: '#0d1117', border: '1px solid #30363d', borderRadius: '6px', color: '#e6edf3' }}
-                >
-                  <option value="">Unassigned</option>
-                  <option value="scout">🔭 Scout (Research)</option>
-                  <option value="builder">🔨 Builder (Dev)</option>
-                </select>
-                <select 
-                  value={newTask.priority}
-                  onChange={(e) => setNewTask({...newTask, priority: e.target.value})}
-                  style={{ padding: '8px', background: '#0d1117', border: '1px solid #30363d', borderRadius: '6px', color: '#e6edf3' }}
-                >
-                  <option value="low">🟢 Low</option>
-                  <option value="medium">🟡 Medium</option>
-                  <option value="high">🔴 High</option>
-                </select>
-                <button style={{...styles.btn, background: '#238636'}} onClick={addTask}>Add Task</button>
-              </div>
-            </div>
-          </div>
-
-          {/* Task Board */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '12px' }}>
-            {['backlog', 'ready', 'in_progress', 'done'].map(status => (
-              <div key={status} style={{...styles.card, background: '#0d1117'}}>
-                <div style={{...styles.cardTitle, textTransform: 'capitalize'}}>
-                  {status === 'in_progress' ? '🔄 In Progress' : status === 'backlog' ? '📥 Backlog' : status === 'ready' ? '✅ Ready' : '✨ Done'}
-                  <span style={{...styles.tag, background: '#30363d'}}>{kanban.tasks?.filter(t => t.status === status).length || 0}</span>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {kanban.tasks?.filter(t => t.status === status).map(task => (
-                    <div key={task.id} style={{ padding: '12px', background: '#161b22', border: '1px solid #30363d', borderRadius: '6px' }}>
-                      <div style={{ fontWeight: 500, marginBottom: '4px' }}>{task.title}</div>
-                      {task.description && <div style={{ fontSize: '12px', color: '#8b949e', marginBottom: '8px' }}>{task.description.slice(0, 100)}{task.description.length > 100 ? '...' : ''}</div>}
-                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-                        {task.assignee && <span style={{...styles.tag, background: task.assignee === 'scout' ? '#8957e5' : '#d29922'}}>{task.assignee}</span>}
-                        <span style={{...styles.tag, background: task.priority === 'high' ? '#da3633' : task.priority === 'medium' ? '#d29922' : '#238636'}}>{task.priority}</span>
-                        {status !== 'done' && status !== 'in_progress' && (
-                          <select 
-                            value={task.status}
-                            onChange={(e) => updateTask(task.id, { status: e.target.value })}
-                            style={{ padding: '4px', background: '#21262d', border: '1px solid #30363d', borderRadius: '4px', color: '#e6edf3', fontSize: '11px' }}
-                          >
-                            <option value="backlog">Backlog</option>
-                            <option value="ready">Ready</option>
-                          </select>
-                        )}
-                        {status === 'in_progress' && task.sessionKey && (
-                          <span style={{ fontSize: '10px', color: '#3fb950' }}>⚡ Running</span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                  {(!kanban.tasks || kanban.tasks.filter(t => t.status === status).length === 0) && (
-                    <div style={{ padding: '12px', color: '#8b949e', fontSize: '13px', textAlign: 'center' }}>No tasks</div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <KanbanBoard 
+          kanban={kanban}
+          newTask={newTask}
+          setNewTask={setNewTask}
+          addTask={addTask}
+          updateTask={updateTask}
+          deleteTask={deleteTask}
+          fetchKanban={fetchKanban}
+          styles={styles}
+        />
       )}
 
       {tab === 'settings' && (
