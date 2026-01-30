@@ -314,6 +314,8 @@ export default function Dashboard() {
   const [juntoSettings, setJuntoSettings] = useState(null);
   const [juntoStatus, setJuntoStatus] = useState(null);
   const [juntoLoading, setJuntoLoading] = useState(false);
+  const [kanban, setKanban] = useState({ tasks: [], summary: {} });
+  const [newTask, setNewTask] = useState({ title: '', description: '', assignee: null, priority: 'medium' });
 
   // Wrapper that uses component state
   const fmtMoney = (n) => formatMoney(n, publicScreenshot);
@@ -486,6 +488,38 @@ export default function Dashboard() {
     } catch (e) { console.error(e); }
   }
 
+  async function fetchKanban() {
+    try {
+      const res = await fetch('/api/kanban');
+      const data = await res.json();
+      setKanban(data);
+    } catch (e) { console.error(e); }
+  }
+
+  async function addTask() {
+    if (!newTask.title) return;
+    try {
+      await fetch('/api/kanban', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...newTask, status: 'backlog' })
+      });
+      setNewTask({ title: '', description: '', assignee: null, priority: 'medium' });
+      fetchKanban();
+    } catch (e) { console.error(e); }
+  }
+
+  async function updateTask(id, updates) {
+    try {
+      await fetch('/api/kanban', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, ...updates })
+      });
+      fetchKanban();
+    } catch (e) { console.error(e); }
+  }
+
   async function updateAsset(symbol, updates) {
     try {
       await fetch('/api/assets', {
@@ -563,7 +597,7 @@ export default function Dashboard() {
 
       {/* Tabs - horizontal scroll on mobile */}
       <div style={styles.tabs} className="tabs-container">
-        {['portfolio', 'trades', 'assets', 'reports', 'fitness', 'review', 'settings'].map(t => (
+        {['portfolio', 'trades', 'assets', 'reports', 'fitness', 'review', 'tasks', 'settings'].map(t => (
           <div key={t} style={tab === t ? styles.tabActive : styles.tab} className="tab-item" onClick={() => setTab(t)}>
             {t.charAt(0).toUpperCase() + t.slice(1)}
           </div>
@@ -1566,6 +1600,93 @@ export default function Dashboard() {
                 ← Select a file to view
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {tab === 'tasks' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* Add Task Form */}
+          <div style={styles.card}>
+            <div style={styles.cardTitle}>
+              <span>➕ Add Task</span>
+              <button style={styles.btn} onClick={fetchKanban}>🔄 Refresh</button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <input 
+                placeholder="Task title..."
+                value={newTask.title}
+                onChange={(e) => setNewTask({...newTask, title: e.target.value})}
+                style={{ padding: '10px', background: '#0d1117', border: '1px solid #30363d', borderRadius: '6px', color: '#e6edf3', fontSize: '14px' }}
+              />
+              <textarea 
+                placeholder="Description (optional)..."
+                value={newTask.description}
+                onChange={(e) => setNewTask({...newTask, description: e.target.value})}
+                style={{ padding: '10px', background: '#0d1117', border: '1px solid #30363d', borderRadius: '6px', color: '#e6edf3', fontSize: '14px', minHeight: '60px' }}
+              />
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                <select 
+                  value={newTask.assignee || ''}
+                  onChange={(e) => setNewTask({...newTask, assignee: e.target.value || null})}
+                  style={{ padding: '8px', background: '#0d1117', border: '1px solid #30363d', borderRadius: '6px', color: '#e6edf3' }}
+                >
+                  <option value="">Unassigned</option>
+                  <option value="scout">🔭 Scout (Research)</option>
+                  <option value="builder">🔨 Builder (Dev)</option>
+                </select>
+                <select 
+                  value={newTask.priority}
+                  onChange={(e) => setNewTask({...newTask, priority: e.target.value})}
+                  style={{ padding: '8px', background: '#0d1117', border: '1px solid #30363d', borderRadius: '6px', color: '#e6edf3' }}
+                >
+                  <option value="low">🟢 Low</option>
+                  <option value="medium">🟡 Medium</option>
+                  <option value="high">🔴 High</option>
+                </select>
+                <button style={{...styles.btn, background: '#238636'}} onClick={addTask}>Add Task</button>
+              </div>
+            </div>
+          </div>
+
+          {/* Task Board */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '12px' }}>
+            {['backlog', 'ready', 'in_progress', 'done'].map(status => (
+              <div key={status} style={{...styles.card, background: '#0d1117'}}>
+                <div style={{...styles.cardTitle, textTransform: 'capitalize'}}>
+                  {status === 'in_progress' ? '🔄 In Progress' : status === 'backlog' ? '📥 Backlog' : status === 'ready' ? '✅ Ready' : '✨ Done'}
+                  <span style={{...styles.tag, background: '#30363d'}}>{kanban.tasks?.filter(t => t.status === status).length || 0}</span>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {kanban.tasks?.filter(t => t.status === status).map(task => (
+                    <div key={task.id} style={{ padding: '12px', background: '#161b22', border: '1px solid #30363d', borderRadius: '6px' }}>
+                      <div style={{ fontWeight: 500, marginBottom: '4px' }}>{task.title}</div>
+                      {task.description && <div style={{ fontSize: '12px', color: '#8b949e', marginBottom: '8px' }}>{task.description.slice(0, 100)}{task.description.length > 100 ? '...' : ''}</div>}
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                        {task.assignee && <span style={{...styles.tag, background: task.assignee === 'scout' ? '#8957e5' : '#d29922'}}>{task.assignee}</span>}
+                        <span style={{...styles.tag, background: task.priority === 'high' ? '#da3633' : task.priority === 'medium' ? '#d29922' : '#238636'}}>{task.priority}</span>
+                        {status !== 'done' && status !== 'in_progress' && (
+                          <select 
+                            value={task.status}
+                            onChange={(e) => updateTask(task.id, { status: e.target.value })}
+                            style={{ padding: '4px', background: '#21262d', border: '1px solid #30363d', borderRadius: '4px', color: '#e6edf3', fontSize: '11px' }}
+                          >
+                            <option value="backlog">Backlog</option>
+                            <option value="ready">Ready</option>
+                          </select>
+                        )}
+                        {status === 'in_progress' && task.sessionKey && (
+                          <span style={{ fontSize: '10px', color: '#3fb950' }}>⚡ Running</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {(!kanban.tasks || kanban.tasks.filter(t => t.status === status).length === 0) && (
+                    <div style={{ padding: '12px', color: '#8b949e', fontSize: '13px', textAlign: 'center' }}>No tasks</div>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
