@@ -17,29 +17,110 @@ const TRADE_COLORS = {
 };
 
 const styles = {
-  container: { background: '#0d1117', minHeight: '100vh', color: '#e6edf3', padding: '20px', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif' },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', paddingBottom: '16px', borderBottom: '1px solid #30363d' },
-  tabs: { display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' },
-  tab: { padding: '8px 16px', background: '#161b22', border: '1px solid #30363d', borderRadius: '6px', cursor: 'pointer', color: '#8b949e' },
-  tabActive: { padding: '8px 16px', background: '#58a6ff', border: '1px solid #58a6ff', borderRadius: '6px', cursor: 'pointer', color: '#fff' },
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' },
-  card: { background: '#161b22', border: '1px solid #30363d', borderRadius: '8px', padding: '16px' },
-  cardTitle: { fontSize: '14px', color: '#8b949e', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  bigNum: { fontSize: '28px', fontWeight: '600' },
+  // Responsive container - uses CSS class for padding
+  container: { 
+    background: '#0d1117', 
+    minHeight: '100vh', 
+    color: '#e6edf3', 
+    padding: 'clamp(12px, 3vw, 24px)', // Responsive padding
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif' 
+  },
+  // Header uses CSS class for responsive layout
+  header: { 
+    marginBottom: '24px', 
+    paddingBottom: '16px', 
+    borderBottom: '1px solid #30363d' 
+  },
+  // Tabs - horizontal scroll on mobile via CSS class
+  tabs: { 
+    marginBottom: '20px',
+    paddingBottom: '8px',
+  },
+  tab: { 
+    padding: '10px 16px', 
+    background: '#161b22', 
+    border: '1px solid #30363d', 
+    borderRadius: '6px', 
+    cursor: 'pointer', 
+    color: '#8b949e',
+    whiteSpace: 'nowrap',
+    minHeight: '44px', // Touch-friendly
+    display: 'flex',
+    alignItems: 'center',
+  },
+  tabActive: { 
+    padding: '10px 16px', 
+    background: '#58a6ff', 
+    border: '1px solid #58a6ff', 
+    borderRadius: '6px', 
+    cursor: 'pointer', 
+    color: '#fff',
+    whiteSpace: 'nowrap',
+    minHeight: '44px',
+    display: 'flex',
+    alignItems: 'center',
+  },
+  // Responsive grid - uses CSS class
+  grid: { 
+    display: 'grid', 
+    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', // min() prevents overflow
+    gap: '16px' 
+  },
+  card: { 
+    background: '#161b22', 
+    border: '1px solid #30363d', 
+    borderRadius: '8px', 
+    padding: 'clamp(12px, 2vw, 16px)' // Responsive padding
+  },
+  cardTitle: { 
+    fontSize: '14px', 
+    color: '#8b949e', 
+    textTransform: 'uppercase', 
+    letterSpacing: '0.5px', 
+    marginBottom: '12px', 
+    display: 'flex', 
+    justifyContent: 'space-between', 
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: '8px',
+  },
+  bigNum: { fontSize: 'clamp(24px, 5vw, 28px)', fontWeight: '600' },
   green: { color: '#3fb950' },
   red: { color: '#f85149' },
   table: { width: '100%', borderCollapse: 'collapse', fontSize: '13px', marginTop: '12px' },
-  th: { textAlign: 'left', padding: '8px 4px', borderBottom: '1px solid #30363d', color: '#8b949e', fontWeight: '500' },
+  th: { textAlign: 'left', padding: '8px 4px', borderBottom: '1px solid #30363d', color: '#8b949e', fontWeight: '500', whiteSpace: 'nowrap' },
   td: { padding: '8px 4px', borderBottom: '1px solid #21262d' },
   tag: { display: 'inline-block', padding: '2px 8px', borderRadius: '12px', fontSize: '11px', marginRight: '4px' },
-  btn: { padding: '6px 12px', background: '#21262d', border: '1px solid #30363d', borderRadius: '6px', color: '#e6edf3', cursor: 'pointer', fontSize: '12px' },
-  researchGrid: { display: 'grid', gridTemplateColumns: '280px 1fr', gap: '16px' },
-  researchItem: { padding: '10px', margin: '4px 0', background: '#0d1117', border: '1px solid #30363d', borderRadius: '6px', cursor: 'pointer' },
+  btn: { 
+    padding: '8px 16px', 
+    background: '#21262d', 
+    border: '1px solid #30363d', 
+    borderRadius: '6px', 
+    color: '#e6edf3', 
+    cursor: 'pointer', 
+    fontSize: '14px',
+    minHeight: '44px', // Touch-friendly
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // Uses CSS class for responsive layout
+  researchGrid: { gap: '16px' },
+  researchItem: { 
+    padding: '12px', 
+    margin: '4px 0', 
+    background: '#0d1117', 
+    border: '1px solid #30363d', 
+    borderRadius: '6px', 
+    cursor: 'pointer',
+    minHeight: '44px', // Touch-friendly
+  },
   convictionBar: { display: 'flex', gap: '2px' },
-  convictionDot: { width: '8px', height: '8px', borderRadius: '50%', background: '#30363d' },
-  convictionDotFilled: { width: '8px', height: '8px', borderRadius: '50%', background: '#3fb950' },
+  convictionDot: { width: '10px', height: '10px', borderRadius: '50%', background: '#30363d' },
+  convictionDotFilled: { width: '10px', height: '10px', borderRadius: '50%', background: '#3fb950' },
   pieContainer: { position: 'relative', width: '180px', height: '180px' },
-  summaryGrid: { display: 'grid', gridTemplateColumns: '200px 1fr', gap: '24px', alignItems: 'start' },
+  // Uses CSS class for responsive layout
+  summaryGrid: { gap: '24px', alignItems: 'start' },
 };
 
 function formatMoney(n, isPublic = false) { 
@@ -408,34 +489,36 @@ export default function Dashboard() {
   const pieData = tradeValues.filter(t => t.values.total > 0).map(t => ({ name: t.name, value: t.values.total, color: t.color }));
 
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <h1 style={{ fontSize: '24px', margin: 0 }}>⚡ Jai Dashboard</h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+    <div style={styles.container} className="container-padding">
+      <div style={styles.header} className="header-responsive">
+        <h1 style={{ fontSize: 'clamp(20px, 4vw, 24px)', margin: 0 }}>⚡ Jai Dashboard</h1>
+        <div className="header-actions">
           <button
             onClick={() => setPublicScreenshot(!publicScreenshot)}
             style={{
-              padding: '6px 12px',
+              padding: '8px 12px',
               background: publicScreenshot ? '#238636' : '#21262d',
               border: `1px solid ${publicScreenshot ? '#238636' : '#30363d'}`,
               borderRadius: '6px',
               color: '#e6edf3',
               cursor: 'pointer',
-              fontSize: '12px',
+              fontSize: '13px',
               display: 'flex',
               alignItems: 'center',
-              gap: '6px'
+              gap: '6px',
+              minHeight: '44px',
             }}
           >
-            {publicScreenshot ? '👁️' : '👁️‍🗨️'} Public Screenshot
+            {publicScreenshot ? '👁️' : '👁️‍🗨️'} <span className="hide-mobile">Public Screenshot</span><span style={{ display: 'none' }} className="show-mobile">Privacy</span>
           </button>
-          <div style={{ color: '#8b949e' }}>{new Date().toLocaleDateString()}</div>
+          <div style={{ color: '#8b949e', fontSize: '14px' }}>{new Date().toLocaleDateString()}</div>
         </div>
       </div>
 
-      <div style={styles.tabs}>
+      {/* Tabs - horizontal scroll on mobile */}
+      <div style={styles.tabs} className="tabs-container">
         {['portfolio', 'trades', 'assets', 'reports', 'fitness', 'review'].map(t => (
-          <div key={t} style={tab === t ? styles.tabActive : styles.tab} onClick={() => setTab(t)}>
+          <div key={t} style={tab === t ? styles.tabActive : styles.tab} className="tab-item" onClick={() => setTab(t)}>
             {t.charAt(0).toUpperCase() + t.slice(1)}
           </div>
         ))}
@@ -482,6 +565,7 @@ export default function Dashboard() {
               <span>📊 All Holdings</span>
               <span style={{ fontSize: '16px', fontWeight: '600' }}>{formatMoney(s.total)}</span>
             </div>
+            <div className="table-responsive">
             <table style={styles.table}>
               <thead>
                 <tr>
@@ -626,6 +710,7 @@ export default function Dashboard() {
                 })()}
               </tbody>
             </table>
+            </div>{/* table-responsive */}
           </div>
         </>
       )}
@@ -639,16 +724,18 @@ export default function Dashboard() {
           {/* Summary Section */}
           <div style={{...styles.card, marginBottom: '24px'}}>
             <div style={styles.cardTitle}>📊 Trade Allocation Summary</div>
-            <div style={styles.summaryGrid}>
-              <PieChart data={pieData} />
-              <div>
+            <div style={styles.summaryGrid} className="summary-grid">
+              <div className="pie-container">
+                <PieChart data={pieData} />
+              </div>
+              <div className="table-responsive">
                 <table style={{...styles.table, marginTop: 0}}>
                   <thead>
                     <tr>
                       <th style={styles.th}>Trade</th>
                       <th style={styles.th}>Value</th>
                       <th style={styles.th}>%</th>
-                      <th style={styles.th}>Equity/Options</th>
+                      <th style={{...styles.th, minWidth: '100px'}}>Eq/Opt</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -659,13 +746,13 @@ export default function Dashboard() {
                         <tr key={t.id}>
                           <td style={styles.td}>
                             <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '2px', background: t.color, marginRight: '8px' }} />
-                            {t.name}
+                            <span style={{ whiteSpace: 'nowrap' }}>{t.name}</span>
                           </td>
                           <td style={styles.td}>{formatMoney(t.values.total)}</td>
                           <td style={styles.td}>{totalTradeValue > 0 ? Math.round(t.values.total / totalTradeValue * 100) : 0}%</td>
                           <td style={styles.td}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                              <div style={{ width: '60px', height: '8px', background: '#21262d', borderRadius: '4px', overflow: 'hidden', display: 'flex' }}>
+                              <div style={{ width: '50px', height: '8px', background: '#21262d', borderRadius: '4px', overflow: 'hidden', display: 'flex' }}>
                                 <div style={{ width: `${eqPct}%`, background: '#3fb950' }} />
                                 <div style={{ width: `${optPct}%`, background: '#d29922' }} />
                               </div>
@@ -772,11 +859,11 @@ export default function Dashboard() {
       )}
 
       {tab === 'assets' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '16px' }}>
+        <div className="two-panel" style={{ gap: '16px' }}>
           {/* Asset List */}
           <div style={styles.card}>
             <div style={styles.cardTitle}>📋 Assets ({assets.length})</div>
-            <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+            <div style={{ maxHeight: '50vh', overflowY: 'auto' }}>
               {assets.map(a => {
                 const pos = portfolio?.equities?.find(e => e.symbol === a.symbol) || 
                             portfolio?.crypto?.find(c => c.symbol === a.symbol);
@@ -921,10 +1008,10 @@ export default function Dashboard() {
         const selectedReport = selected || selectedNewsletter;
         
         return (
-          <div style={styles.researchGrid}>
+          <div style={styles.researchGrid} className="research-grid">
             <div style={styles.card}>
               <div style={styles.cardTitle}>📊 Reports ({allReports.length})</div>
-              <div style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+              <div style={{ maxHeight: '50vh', overflowY: 'auto' }}>
                 {allReports.length === 0 ? (
                   <p style={{ color: '#8b949e' }}>No reports yet</p>
                 ) : (
