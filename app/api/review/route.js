@@ -8,6 +8,8 @@ export const dynamic = 'force-dynamic';
 const REVIEW_FILES = [
   // Content
   { path: '~/clawd/content/twitter-drafts.md', name: 'Twitter Drafts', category: 'Content' },
+  // Research
+  { path: '~/clawd/research/irl-trade-2026-01-30.md', name: 'The IRL Trade', category: 'Research' },
   // myjunto
   { path: '~/clawd/myjunto/PRODUCT_PLAN.md', name: 'Product Plan', category: 'myjunto' },
   { path: '~/clawd/myjunto/prompts/professional-v1.md', name: 'Prompt v1', category: 'myjunto' },
