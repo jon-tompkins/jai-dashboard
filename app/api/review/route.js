@@ -6,9 +6,15 @@ export const dynamic = 'force-dynamic';
 
 // Files to expose for review
 const REVIEW_FILES = [
-  { path: '~/clawd/myjunto/PRODUCT_PLAN.md', name: 'PRODUCT_PLAN.md', category: 'Plans' },
-  { path: '~/clawd/myjunto/prompts/professional-v1.md', name: 'professional-v1.md', category: 'Prompts' },
-  { path: '~/clawd/myjunto/prompts/original-backup.md', name: 'original-backup.md', category: 'Prompts' },
+  // Content
+  { path: '~/clawd/content/twitter-drafts.md', name: 'Twitter Drafts', category: 'Content' },
+  // myjunto
+  { path: '~/clawd/myjunto/PRODUCT_PLAN.md', name: 'Product Plan', category: 'myjunto' },
+  { path: '~/clawd/myjunto/prompts/professional-v1.md', name: 'Prompt v1', category: 'myjunto' },
+  { path: '~/clawd/myjunto/prompts/original-backup.md', name: 'Original Prompt', category: 'myjunto' },
+  // Memory/Notes
+  { path: '~/clawd/MEMORY.md', name: 'Memory', category: 'Notes' },
+  { path: '~/clawd/AGENTS.md', name: 'Agents Guide', category: 'Notes' },
 ];
 
 function expandPath(p) {

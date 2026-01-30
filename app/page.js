@@ -311,6 +311,9 @@ export default function Dashboard() {
   const [reviewContent, setReviewContent] = useState(null);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [reportsListOpen, setReportsListOpen] = useState(true);
+  const [juntoSettings, setJuntoSettings] = useState(null);
+  const [juntoStatus, setJuntoStatus] = useState(null);
+  const [juntoLoading, setJuntoLoading] = useState(false);
 
   // Wrapper that uses component state
   const fmtMoney = (n) => formatMoney(n, publicScreenshot);
@@ -441,6 +444,48 @@ export default function Dashboard() {
     setReviewLoading(false);
   }
 
+  async function fetchJuntoStatus() {
+    setJuntoLoading(true);
+    try {
+      // Fetch from junto API (deployed on Vercel)
+      const statusRes = await fetch('https://myjunto.xyz/api/status');
+      const statusData = await statusRes.json();
+      setJuntoStatus(statusData);
+      
+      // Fetch user settings from Supabase
+      const settingsRes = await fetch(`${SUPABASE_URL}/rest/v1/users?select=*&limit=1`, {
+        headers: { 'apikey': SUPABASE_ANON }
+      });
+      const settingsData = await settingsRes.json();
+      if (settingsData?.[0]) setJuntoSettings(settingsData[0]);
+    } catch (e) { 
+      console.error('Junto fetch error:', e); 
+      // Try local fallback
+      try {
+        const res = await fetch('/api/junto-status');
+        const data = await res.json();
+        setJuntoStatus(data);
+      } catch (e2) { console.error(e2); }
+    }
+    setJuntoLoading(false);
+  }
+
+  async function updateJuntoSettings(updates) {
+    if (!juntoSettings?.id) return;
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${juntoSettings.id}`, {
+        method: 'PATCH',
+        headers: { 
+          'apikey': SUPABASE_ANON,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify(updates)
+      });
+      fetchJuntoStatus();
+    } catch (e) { console.error(e); }
+  }
+
   async function updateAsset(symbol, updates) {
     try {
       await fetch('/api/assets', {
@@ -518,7 +563,7 @@ export default function Dashboard() {
 
       {/* Tabs - horizontal scroll on mobile */}
       <div style={styles.tabs} className="tabs-container">
-        {['portfolio', 'trades', 'assets', 'reports', 'fitness', 'review'].map(t => (
+        {['portfolio', 'trades', 'assets', 'reports', 'fitness', 'review', 'settings'].map(t => (
           <div key={t} style={tab === t ? styles.tabActive : styles.tab} className="tab-item" onClick={() => setTab(t)}>
             {t.charAt(0).toUpperCase() + t.slice(1)}
           </div>
@@ -1427,14 +1472,17 @@ export default function Dashboard() {
       )}
 
       {tab === 'review' && (
-        <div className="review-grid" style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'minmax(200px, 280px) 1fr', 
-          gap: '16px'
-        }}>
-          {/* File List - responsive */}
-          <div className="review-file-list" style={{...styles.card, maxHeight: reviewContent ? '40vh' : 'auto', overflowY: 'auto'}}>
-            <div style={styles.cardTitle}>📁 Files ({reviewFiles.length})</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* File List - collapsible on mobile */}
+          <div style={styles.card}>
+            <div 
+              style={{...styles.cardTitle, cursor: 'pointer', marginBottom: reviewFiles.length > 0 && !reviewContent ? '12px' : (reviewContent ? 0 : '12px') }} 
+              onClick={() => setReviewContent(reviewContent ? null : reviewContent)}
+            >
+              <span>📁 Files ({reviewFiles.length}) {reviewContent && selectedReviewFile ? `• ${selectedReviewFile.name}` : ''}</span>
+              <span style={{ fontSize: '12px', color: '#8b949e' }}>{!reviewContent || !selectedReviewFile ? '▼' : '▶ tap to browse'}</span>
+            </div>
+            <div style={{ maxHeight: reviewContent && selectedReviewFile ? 0 : '50vh', overflow: 'hidden', overflowY: !reviewContent || !selectedReviewFile ? 'auto' : 'hidden', transition: 'max-height 0.2s ease' }}>
             {reviewFiles.length === 0 ? (
               <p style={{ color: '#8b949e', fontSize: '14px' }}>Loading files...</p>
             ) : (
@@ -1471,10 +1519,11 @@ export default function Dashboard() {
                 </div>
               ))
             )}
+            </div>
           </div>
 
           {/* File Content Viewer */}
-          <div className="review-content" style={{...styles.card, minHeight: '60vh', maxHeight: '80vh', overflowY: 'auto'}}>
+          <div style={{...styles.card, flex: 1, overflowY: 'auto'}}>
             {reviewLoading ? (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '200px', color: '#8b949e' }}>
                 ⏳ Loading...
@@ -1485,6 +1534,8 @@ export default function Dashboard() {
                   display: 'flex', 
                   justifyContent: 'space-between', 
                   alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: '8px',
                   marginBottom: '16px',
                   paddingBottom: '12px',
                   borderBottom: '1px solid #30363d',
@@ -1493,8 +1544,13 @@ export default function Dashboard() {
                   background: '#161b22',
                   zIndex: 10
                 }}>
-                  <h2 style={{ margin: 0, fontSize: '18px' }}>📄 {reviewContent.name}</h2>
-                  <span style={{ fontSize: '12px', color: '#8b949e' }}>{(reviewContent.size / 1024).toFixed(1)} KB</span>
+                  <h2 style={{ margin: 0, fontSize: '18px', flex: 1 }}>📄 {reviewContent.name}</h2>
+                  <button 
+                    style={{...styles.btn, fontSize: '11px', padding: '4px 10px', minHeight: 'auto'}} 
+                    onClick={() => { setReviewContent(null); setSelectedReviewFile(null); }}
+                  >
+                    ← Back to list
+                  </button>
                 </div>
                 <div 
                   style={{ 
@@ -1508,6 +1564,128 @@ export default function Dashboard() {
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '200px', color: '#8b949e' }}>
                 ← Select a file to view
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {tab === 'settings' && (
+        <div style={styles.grid}>
+          {/* myjunto Settings */}
+          <div style={{...styles.card, gridColumn: 'span 2'}}>
+            <div style={{...styles.cardTitle, marginBottom: '16px'}}>
+              <span>⚙️ myjunto Settings</span>
+              <button style={styles.btn} onClick={fetchJuntoStatus}>
+                {juntoLoading ? '⏳' : '🔄'} Refresh
+              </button>
+            </div>
+            
+            {juntoStatus ? (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+                {/* Delivery Settings */}
+                <div style={{ padding: '16px', background: '#0d1117', borderRadius: '8px', border: '1px solid #30363d' }}>
+                  <h4 style={{ margin: '0 0 12px', color: '#58a6ff' }}>📬 Newsletter Delivery</h4>
+                  <div style={{ marginBottom: '12px' }}>
+                    <label style={{ display: 'block', fontSize: '12px', color: '#8b949e', marginBottom: '4px' }}>Delivery Time</label>
+                    <input 
+                      type="time" 
+                      value={juntoSettings?.settings?.delivery_time || '05:00'}
+                      onChange={(e) => updateJuntoSettings({ settings: { ...juntoSettings?.settings, delivery_time: e.target.value } })}
+                      style={{ padding: '8px', background: '#161b22', border: '1px solid #30363d', borderRadius: '6px', color: '#e6edf3', fontSize: '14px' }}
+                    />
+                  </div>
+                  <div style={{ marginBottom: '12px' }}>
+                    <label style={{ display: 'block', fontSize: '12px', color: '#8b949e', marginBottom: '4px' }}>Timezone</label>
+                    <select 
+                      value={juntoSettings?.settings?.timezone || 'America/Los_Angeles'}
+                      onChange={(e) => updateJuntoSettings({ settings: { ...juntoSettings?.settings, timezone: e.target.value } })}
+                      style={{ padding: '8px', background: '#161b22', border: '1px solid #30363d', borderRadius: '6px', color: '#e6edf3', fontSize: '14px', width: '100%' }}
+                    >
+                      <option value="America/Los_Angeles">Pacific (PT)</option>
+                      <option value="America/Denver">Mountain (MT)</option>
+                      <option value="America/Chicago">Central (CT)</option>
+                      <option value="America/New_York">Eastern (ET)</option>
+                      <option value="UTC">UTC</option>
+                    </select>
+                  </div>
+                  {juntoStatus?.user?.next_newsletter && (
+                    <div style={{ fontSize: '12px', color: '#3fb950', marginTop: '8px' }}>
+                      ✓ Next delivery: {juntoStatus.user.next_newsletter.local} ({juntoStatus.user.next_newsletter.timezone})
+                    </div>
+                  )}
+                </div>
+
+                {/* Data Sources */}
+                <div style={{ padding: '16px', background: '#0d1117', borderRadius: '8px', border: '1px solid #30363d' }}>
+                  <h4 style={{ margin: '0 0 12px', color: '#58a6ff' }}>📡 Data Sources</h4>
+                  <div style={{ fontSize: '13px' }}>
+                    <div style={{ marginBottom: '8px', color: '#8b949e' }}>
+                      Tracking {juntoStatus?.system?.profiles_tracked || 0} profiles
+                    </div>
+                    {juntoStatus?.data_sources?.map(src => (
+                      <div key={src.handle} style={{ padding: '6px 0', borderBottom: '1px solid #21262d', display: 'flex', justifyContent: 'space-between' }}>
+                        <span>{src.handle}</span>
+                        <span style={{ color: '#8b949e', fontSize: '11px' }}>
+                          {src.tweets} tweets • {src.last_fetch ? new Date(src.last_fetch).toLocaleString() : 'never'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* System Status */}
+                <div style={{ padding: '16px', background: '#0d1117', borderRadius: '8px', border: '1px solid #30363d' }}>
+                  <h4 style={{ margin: '0 0 12px', color: '#58a6ff' }}>📊 System Status</h4>
+                  <div style={{ fontSize: '13px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
+                      <span style={{ color: '#8b949e' }}>Status</span>
+                      <span style={{ color: juntoStatus?.status === 'healthy' ? '#3fb950' : '#f85149' }}>
+                        {juntoStatus?.status === 'healthy' ? '🟢 Healthy' : '🔴 Error'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
+                      <span style={{ color: '#8b949e' }}>Newsletters (7d)</span>
+                      <span>{juntoStatus?.system?.newsletters_last_7d || 0}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
+                      <span style={{ color: '#8b949e' }}>Total Tweets</span>
+                      <span>{juntoStatus?.system?.total_tweets?.toLocaleString() || 0}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
+                      <span style={{ color: '#8b949e' }}>Cron Schedule</span>
+                      <span style={{ fontSize: '11px' }}>{juntoStatus?.system?.cron_schedule || 'hourly'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Custom Prompt */}
+                <div style={{ padding: '16px', background: '#0d1117', borderRadius: '8px', border: '1px solid #30363d', gridColumn: 'span 2' }}>
+                  <h4 style={{ margin: '0 0 12px', color: '#58a6ff' }}>✍️ Custom Prompt (optional)</h4>
+                  <textarea 
+                    value={juntoSettings?.custom_prompt || ''}
+                    onChange={(e) => updateJuntoSettings({ custom_prompt: e.target.value })}
+                    placeholder="Leave empty for default prompt. Add custom instructions to personalize your newsletter..."
+                    style={{ 
+                      width: '100%', 
+                      minHeight: '100px', 
+                      padding: '12px', 
+                      background: '#161b22', 
+                      border: '1px solid #30363d', 
+                      borderRadius: '6px', 
+                      color: '#e6edf3', 
+                      fontSize: '13px',
+                      resize: 'vertical'
+                    }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '40px', color: '#8b949e' }}>
+                <p>Click Refresh to load myjunto settings</p>
+                <button style={{...styles.btn, marginTop: '12px'}} onClick={fetchJuntoStatus}>
+                  Load Settings
+                </button>
               </div>
             )}
           </div>
