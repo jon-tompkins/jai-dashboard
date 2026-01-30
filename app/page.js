@@ -310,6 +310,7 @@ export default function Dashboard() {
   const [selectedReviewFile, setSelectedReviewFile] = useState(null);
   const [reviewContent, setReviewContent] = useState(null);
   const [reviewLoading, setReviewLoading] = useState(false);
+  const [reportsListOpen, setReportsListOpen] = useState(true);
 
   // Wrapper that uses component state
   const fmtMoney = (n) => formatMoney(n, publicScreenshot);
@@ -1008,10 +1009,18 @@ export default function Dashboard() {
         const selectedReport = selected || selectedNewsletter;
         
         return (
-          <div style={styles.researchGrid} className="research-grid">
-            <div style={styles.card}>
-              <div style={styles.cardTitle}>📊 Reports ({allReports.length})</div>
-              <div style={{ maxHeight: '50vh', overflowY: 'auto' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Mobile: Collapsible file picker */}
+            <div style={styles.card} className="reports-picker">
+              <div 
+                style={{...styles.cardTitle, cursor: 'pointer', marginBottom: reportsListOpen ? '12px' : 0 }} 
+                onClick={() => setReportsListOpen(!reportsListOpen)}
+                className="collapsible-header"
+              >
+                <span>📊 Reports ({allReports.length}) {selectedReport && !reportsListOpen ? `• ${selectedReport._title}` : ''}</span>
+                <span style={{ fontSize: '12px', color: '#8b949e' }}>{reportsListOpen ? '▼ collapse' : '▶ select'}</span>
+              </div>
+              <div style={{ maxHeight: reportsListOpen ? '40vh' : 0, overflow: 'hidden', overflowY: reportsListOpen ? 'auto' : 'hidden', transition: 'max-height 0.2s ease' }}>
                 {allReports.length === 0 ? (
                   <p style={{ color: '#8b949e' }}>No reports yet</p>
                 ) : (
@@ -1020,7 +1029,7 @@ export default function Dashboard() {
                     const typeColor = r._type === 'newsletter' ? '#1d9bf0' : r.type === 'sector' ? '#d29922' : '#238636';
                     const typeLabel = r._type === 'newsletter' ? (r.type || 'newsletter') : r.type;
                     return (
-                      <div key={r.id} style={{...styles.researchItem, borderColor: isSelected ? '#58a6ff' : '#30363d'}} onClick={() => { r._type === 'newsletter' ? setSelectedNewsletter(r) : setSelected(r); r._type === 'newsletter' ? setSelected(null) : setSelectedNewsletter(null); }}>
+                      <div key={r.id} style={{...styles.researchItem, borderColor: isSelected ? '#58a6ff' : '#30363d'}} onClick={() => { r._type === 'newsletter' ? setSelectedNewsletter(r) : setSelected(r); r._type === 'newsletter' ? setSelected(null) : setSelectedNewsletter(null); setReportsListOpen(false); }}>
                         <div style={{ fontWeight: 500 }}>{r._title}</div>
                         <div style={{ fontSize: '12px', color: '#8b949e', marginTop: '4px' }}>
                           <span style={{...styles.tag, background: typeColor}}>{typeLabel}</span>
@@ -1040,8 +1049,19 @@ export default function Dashboard() {
                 )}
               </div>
             </div>
-            <div style={styles.card}>
-              <div style={styles.cardTitle}>{selectedReport?._title || selectedReport?.ticker || 'Select a report'}</div>
+            {/* Content area - full width on mobile */}
+            <div style={{...styles.card, flex: 1 }}>
+              <div style={{...styles.cardTitle, flexWrap: 'wrap', gap: '8px'}}>
+                <span style={{ flex: 1 }}>{selectedReport?._title || selectedReport?.ticker || 'Select a report'}</span>
+                {selectedReport && (
+                  <button 
+                    style={{...styles.btn, fontSize: '11px', padding: '4px 10px', minHeight: 'auto'}} 
+                    onClick={() => setReportsListOpen(true)}
+                  >
+                    ← Back to list
+                  </button>
+                )}
+              </div>
               {selectedReport ? (
                 <>
                   {selectedReport.referenced_assets?.length > 0 && (
@@ -1060,7 +1080,7 @@ export default function Dashboard() {
                   <div style={{ fontSize: '14px', lineHeight: '1.7' }} dangerouslySetInnerHTML={{ __html: renderMarkdown(selectedReport.content) }} />
                 </>
               ) : (
-                <p style={{ color: '#8b949e' }}>← Click a report to view</p>
+                <p style={{ color: '#8b949e' }}>Tap "Reports" above to select one</p>
               )}
             </div>
           </div>
