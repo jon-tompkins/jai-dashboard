@@ -633,6 +633,7 @@ export default function Dashboard() {
   const fmtMoney = (n) => formatMoney(n, publicScreenshot);
 
   useEffect(() => { fetchFitness(); fetchWorkoutLogs(); }, []);
+  useEffect(() => { if (tab === 'tasks') fetchKanban(); }, [tab]);
 
   function toggleChart(key) {
     setChartToggles(prev => ({ ...prev, [key]: !prev[key] }));
