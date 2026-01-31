@@ -628,12 +628,15 @@ export default function Dashboard() {
   const [juntoLoading, setJuntoLoading] = useState(false);
   const [kanban, setKanban] = useState({ tasks: [], summary: {} });
   const [newTask, setNewTask] = useState({ title: '', description: '', assignee: null, priority: 'medium' });
+  const [userSchedule, setUserSchedule] = useState(null);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
 
   // Wrapper that uses component state
   const fmtMoney = (n) => formatMoney(n, publicScreenshot);
 
   useEffect(() => { fetchFitness(); fetchWorkoutLogs(); }, []);
   useEffect(() => { if (tab === 'tasks') fetchKanban(); }, [tab]);
+  useEffect(() => { if (tab === 'settings') fetchUserSchedule(); }, [tab]);
 
   function toggleChart(key) {
     setChartToggles(prev => ({ ...prev, [key]: !prev[key] }));
@@ -839,6 +842,59 @@ export default function Dashboard() {
       await fetch(`/api/kanban?id=${id}`, { method: 'DELETE' });
       fetchKanban();
     } catch (e) { console.error(e); }
+  }
+
+  async function fetchUserSchedule() {
+    setScheduleLoading(true);
+    try {
+      // For demo purposes, use a default email. In production, this would come from auth
+      const response = await fetch('/api/user-schedule?email=user@example.com');
+      if (response.ok) {
+        const data = await response.json();
+        setUserSchedule(data);
+      } else if (response.status === 404) {
+        // User doesn't exist yet, set defaults
+        setUserSchedule({
+          email: 'user@example.com',
+          preferred_send_time: '09:00:00',
+          timezone: 'America/Los_Angeles',
+          send_frequency: 'daily',
+          weekend_delivery: false,
+          max_newsletters_per_day: 1,
+          next_newsletter: null
+        });
+      }
+    } catch (e) { 
+      console.error('Error fetching user schedule:', e);
+    }
+    setScheduleLoading(false);
+  }
+
+  async function updateUserSchedule(updates) {
+    try {
+      const response = await fetch('/api/user-schedule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: userSchedule?.email || 'user@example.com',
+          name: userSchedule?.name || 'Demo User',
+          ...updates
+        })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setUserSchedule(data.user);
+        return data.user;
+      } else {
+        const error = await response.json();
+        throw new Error(error.error || 'Update failed');
+      }
+    } catch (e) { 
+      console.error('Error updating user schedule:', e);
+      alert('Error updating preferences: ' + e.message);
+      return null;
+    }
   }
 
   async function updateAsset(symbol, updates) {
@@ -1940,6 +1996,182 @@ export default function Dashboard() {
 
       {tab === 'settings' && (
         <div style={styles.grid}>
+          {/* Newsletter Scheduling */}
+          <div style={{...styles.card, gridColumn: 'span 2'}}>
+            <div style={{...styles.cardTitle, marginBottom: '16px'}}>
+              <span>📅 Newsletter Scheduling</span>
+              <button style={styles.btn} onClick={fetchUserSchedule} disabled={scheduleLoading}>
+                {scheduleLoading ? '⏳' : '🔄'} Refresh
+              </button>
+            </div>
+            
+            {userSchedule ? (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+                {/* Time & Timezone Settings */}
+                <div style={{ padding: '16px', background: '#0d1117', borderRadius: '8px', border: '1px solid #30363d' }}>
+                  <h4 style={{ margin: '0 0 12px', color: '#58a6ff' }}>🕐 Delivery Time</h4>
+                  <div style={{ marginBottom: '12px' }}>
+                    <label style={{ display: 'block', fontSize: '12px', color: '#8b949e', marginBottom: '4px' }}>Preferred Time</label>
+                    <input 
+                      type="time" 
+                      value={userSchedule.preferred_send_time?.slice(0, 5) || '09:00'}
+                      onChange={(e) => updateUserSchedule({ preferred_send_time: e.target.value + ':00' })}
+                      style={{ padding: '8px', background: '#161b22', border: '1px solid #30363d', borderRadius: '6px', color: '#e6edf3', fontSize: '14px' }}
+                    />
+                  </div>
+                  <div style={{ marginBottom: '12px' }}>
+                    <label style={{ display: 'block', fontSize: '12px', color: '#8b949e', marginBottom: '4px' }}>Timezone</label>
+                    <select 
+                      value={userSchedule.timezone || 'America/Los_Angeles'}
+                      onChange={(e) => updateUserSchedule({ timezone: e.target.value })}
+                      style={{ padding: '8px', background: '#161b22', border: '1px solid #30363d', borderRadius: '6px', color: '#e6edf3', fontSize: '14px', width: '100%' }}
+                    >
+                      <optgroup label="US Timezones">
+                        <option value="America/Los_Angeles">Pacific (PT)</option>
+                        <option value="America/Denver">Mountain (MT)</option>
+                        <option value="America/Chicago">Central (CT)</option>
+                        <option value="America/New_York">Eastern (ET)</option>
+                      </optgroup>
+                      <optgroup label="Other">
+                        <option value="UTC">UTC</option>
+                        <option value="Europe/London">London (GMT)</option>
+                        <option value="Europe/Paris">Paris (CET)</option>
+                        <option value="Asia/Tokyo">Tokyo (JST)</option>
+                        <option value="Australia/Sydney">Sydney (AEDT)</option>
+                      </optgroup>
+                    </select>
+                  </div>
+                  {userSchedule.next_newsletter && (
+                    <div style={{ fontSize: '12px', color: '#3fb950', marginTop: '8px', padding: '8px', background: '#0d1117', borderRadius: '4px', border: '1px solid #238636' }}>
+                      ✅ Next newsletter: <strong>{userSchedule.next_newsletter.local}</strong>
+                    </div>
+                  )}
+                </div>
+
+                {/* Frequency & Options */}
+                <div style={{ padding: '16px', background: '#0d1117', borderRadius: '8px', border: '1px solid #30363d' }}>
+                  <h4 style={{ margin: '0 0 12px', color: '#58a6ff' }}>📊 Frequency & Options</h4>
+                  <div style={{ marginBottom: '12px' }}>
+                    <label style={{ display: 'block', fontSize: '12px', color: '#8b949e', marginBottom: '4px' }}>Send Frequency</label>
+                    <select 
+                      value={userSchedule.send_frequency || 'daily'}
+                      onChange={(e) => updateUserSchedule({ send_frequency: e.target.value })}
+                      style={{ padding: '8px', background: '#161b22', border: '1px solid #30363d', borderRadius: '6px', color: '#e6edf3', fontSize: '14px', width: '100%' }}
+                    >
+                      <option value="daily">Daily</option>
+                      <option value="weekly">Weekly</option>
+                      <option value="bi-weekly">Bi-weekly</option>
+                    </select>
+                  </div>
+                  <div style={{ marginBottom: '12px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={userSchedule.weekend_delivery || false}
+                        onChange={(e) => updateUserSchedule({ weekend_delivery: e.target.checked })}
+                        style={{ width: '16px', height: '16px' }}
+                      />
+                      <span style={{ fontSize: '14px', color: '#e6edf3' }}>Weekend Delivery</span>
+                    </label>
+                    <div style={{ fontSize: '11px', color: '#8b949e', marginTop: '4px', marginLeft: '24px' }}>
+                      Receive newsletters on weekends
+                    </div>
+                  </div>
+                  <div style={{ marginBottom: '8px' }}>
+                    <label style={{ display: 'block', fontSize: '12px', color: '#8b949e', marginBottom: '4px' }}>Max per Day</label>
+                    <input 
+                      type="number" 
+                      min="1" 
+                      max="5"
+                      value={userSchedule.max_newsletters_per_day || 1}
+                      onChange={(e) => updateUserSchedule({ max_newsletters_per_day: parseInt(e.target.value) })}
+                      style={{ padding: '8px', background: '#161b22', border: '1px solid #30363d', borderRadius: '6px', color: '#e6edf3', fontSize: '14px', width: '80px' }}
+                    />
+                  </div>
+                </div>
+
+                {/* Status & History */}
+                <div style={{ padding: '16px', background: '#0d1117', borderRadius: '8px', border: '1px solid #30363d' }}>
+                  <h4 style={{ margin: '0 0 12px', color: '#58a6ff' }}>📈 Status</h4>
+                  <div style={{ fontSize: '13px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
+                      <span style={{ color: '#8b949e' }}>Status</span>
+                      <span style={{ color: userSchedule.preferred_send_time ? '#3fb950' : '#d29922' }}>
+                        {userSchedule.preferred_send_time ? '🟢 Active' : '🟡 Not Scheduled'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
+                      <span style={{ color: '#8b949e' }}>Last Sent</span>
+                      <span>{userSchedule.last_newsletter_sent || 'Never'}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0' }}>
+                      <span style={{ color: '#8b949e' }}>Email</span>
+                      <span style={{ fontSize: '11px' }}>{userSchedule.email}</span>
+                    </div>
+                  </div>
+                  
+                  {/* Quick Actions */}
+                  <div style={{ marginTop: '12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <button 
+                      style={{...styles.btn, background: '#238636', fontSize: '12px', padding: '6px 12px'}} 
+                      onClick={() => {
+                        // Test the scheduling system
+                        fetch('/api/newsletter/check-scheduled')
+                          .then(r => r.json())
+                          .then(data => {
+                            alert(`Test run complete:\n${data.summary?.users_checked || 0} users checked\n${data.summary?.newsletters_sent || 0} newsletters sent`);
+                          })
+                          .catch(e => alert('Test failed: ' + e.message));
+                      }}
+                    >
+                      🧪 Test Send
+                    </button>
+                    <button 
+                      style={{...styles.btn, fontSize: '12px', padding: '6px 12px'}} 
+                      onClick={() => {
+                        if (confirm('Reset all scheduling preferences to defaults?')) {
+                          fetch(`/api/user-schedule?email=${userSchedule.email}`, { method: 'DELETE' })
+                            .then(() => fetchUserSchedule())
+                            .catch(e => alert('Reset failed: ' + e.message));
+                        }
+                      }}
+                    >
+                      🔄 Reset
+                    </button>
+                  </div>
+                </div>
+
+                {/* Preview */}
+                {userSchedule.next_newsletter && (
+                  <div style={{ padding: '16px', background: '#0d1117', borderRadius: '8px', border: '1px solid #3fb950', gridColumn: 'span 2' }}>
+                    <h4 style={{ margin: '0 0 12px', color: '#3fb950' }}>🔮 Preview</h4>
+                    <div style={{ fontSize: '13px', color: '#8b949e' }}>
+                      Based on your current settings, your next newsletter will be delivered on:
+                    </div>
+                    <div style={{ fontSize: '18px', fontWeight: '600', color: '#3fb950', margin: '8px 0' }}>
+                      {userSchedule.next_newsletter.local}
+                    </div>
+                    <div style={{ fontSize: '12px', color: '#8b949e' }}>
+                      That's <strong>{userSchedule.preferred_send_time?.slice(0, 5)}</strong> in your timezone ({userSchedule.timezone})
+                    </div>
+                    {userSchedule.send_frequency !== 'daily' && (
+                      <div style={{ fontSize: '11px', color: '#d29922', marginTop: '4px' }}>
+                        📅 Recurring {userSchedule.send_frequency}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '40px', color: '#8b949e' }}>
+                <p>Click Refresh to load scheduling preferences</p>
+                <button style={{...styles.btn, marginTop: '12px'}} onClick={fetchUserSchedule}>
+                  Load Preferences
+                </button>
+              </div>
+            )}
+          </div>
+          
           {/* myjunto Settings */}
           <div style={{...styles.card, gridColumn: 'span 2'}}>
             <div style={{...styles.cardTitle, marginBottom: '16px'}}>
