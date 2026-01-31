@@ -1,0 +1,41 @@
+{
+  "reviews": [
+    {
+      "taskName": "Myjunto Custom Scheduling",
+      "taskId": "myjunto-custom-scheduling",
+      "content": "# MyJunto Custom Scheduling - Ready for Review\n\n## ✅ Status: DEPLOYED & READY TO TEST\n\n## What Was Built  \nComplete 5-minute cron-based custom scheduling system allowing users to pick any send time for their newsletters.\n\n## Key Features\n- ⏰ **Custom send times** - Users pick any time (e.g., 9:30 AM)\n- 🌍 **Timezone support** - Proper timezone conversion\n- 📅 **Live preview** - \"Next newsletter at: Tuesday 9:30 AM PT\"\n- 🔄 **5-minute resolution** - Cron checks every 5 minutes for due users\n- 🚫 **Duplicate prevention** - Smart logic prevents double-sends\n- 📊 **Queue system** - Retry failed sends, comprehensive logging\n\n## Deployed Files\n- ✅ **Code deployed** to GitHub (auto-deployed to production)\n- ✅ **Cron job updated** to every 5 minutes → `/api/newsletter/check-scheduled`\n- ⏳ **Database migration** needs manual run\n\n## Database Migration Required\n**File**: `~/clawd/supabase_scheduling_system.sql`\n\n**Steps:**\n1. Copy SQL file contents\n2. Go to Supabase → SQL Editor  \n3. Paste and run the migration\n4. Done - system is live!\n\n## Testing\nOnce SQL runs:\n1. Visit myjunto.xyz\n2. Set a custom send time in your profile\n3. Watch for newsletter delivery within 5 minutes of set time\n4. Check live preview: \"Next newsletter at: X:XX AM\"\n\n## Ready For  \n- [x] Code deployment (DONE)\n- [x] Cron job setup (DONE) \n- [ ] Database migration (needs manual run)\n- [ ] User testing",
+      "deliverableFiles": [],
+      "lastModified": "2026-01-31T16:05:57.321Z"
+    },
+    {
+      "taskName": "Plaid Integration",
+      "taskId": "plaid-integration",
+      "content": "# Plaid Integration - Ready for Review \n\n## ✅ Status: COMPLETE & READY TO TEST\n\n## What Was Built\nComplete Next.js application for automatic brokerage account syncing with real-time portfolio tracking.\n\n## Key Features\n- 🔗 Secure account linking via Plaid Link\n- 📊 Real-time portfolio dashboard  \n- 📈 Investment transaction history\n- 🔄 Auto-sync with webhook support\n- 🔐 Encrypted credential storage\n\n## Location\n**Full app**: `~/clawd/plaid-integration/`\n\n## Testing Instructions\n```bash\ncd ~/clawd/plaid-integration\nnpm install\ncp .env.example .env.local\n# Add your Plaid + Supabase credentials to .env.local\nnpm run db:migrate  \nnpm run dev\n```\n\n## Required Setup\n1. **Plaid Developer Account** - Get API keys from dashboard.plaid.com\n2. **Supabase Project** - For database hosting  \n3. **Environment Variables** - See .env.example for required keys\n\n## Ready For\n- [ ] Environment setup (API keys)\n- [ ] Database migration \n- [ ] Local testing\n- [ ] Production deployment",
+      "deliverableFiles": [
+        {
+          "name": "README.md",
+          "type": "file"
+        },
+        {
+          "name": "app",
+          "type": "folder"
+        },
+        {
+          "name": "database",
+          "type": "folder"
+        },
+        {
+          "name": "lib",
+          "type": "folder"
+        },
+        {
+          "name": "next.config.js",
+          "type": "file"
+        }
+      ],
+      "lastModified": "2026-01-31T16:05:46.400Z"
+    }
+  ],
+  "lastBundled": "2026-01-31T17:46:12.440Z",
+  "total": 2
+}

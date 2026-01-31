@@ -5,6 +5,7 @@ import { homedir } from 'os';
 export const dynamic = 'force-dynamic';
 
 const REVIEWS_DIR = join(homedir(), 'clawd', 'reviews');
+const BUNDLED_REVIEWS = join(process.cwd(), 'public', 'reviews-data', 'reviews.json');
 
 function parseReviewMd(content, taskName, filePath) {
   // Extract key information from REVIEW.md content
@@ -150,9 +151,28 @@ function parseReviewMd(content, taskName, filePath) {
   };
 }
 
+function loadBundledReviews() {
+  try {
+    if (existsSync(BUNDLED_REVIEWS)) {
+      const bundledData = JSON.parse(readFileSync(BUNDLED_REVIEWS, 'utf-8'));
+      return bundledData.reviews.map(review => {
+        const parsed = parseReviewMd(review.content, review.taskName, `bundled:${review.taskId}`);
+        parsed.lastModified = review.lastModified;
+        parsed.deliverableFiles = review.deliverableFiles;
+        return parsed;
+      });
+    }
+  } catch (e) {
+    console.error('Error loading bundled reviews:', e);
+  }
+  return [];
+}
+
 function scanReviewsFolder() {
+  // Try bundled data first (for production)
   if (!existsSync(REVIEWS_DIR)) {
-    return [];
+    console.log('Local reviews not found, using bundled data');
+    return loadBundledReviews();
   }
   
   const reviews = [];
