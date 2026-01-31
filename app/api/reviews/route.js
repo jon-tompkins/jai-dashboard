@@ -5,7 +5,10 @@ import { homedir } from 'os';
 export const dynamic = 'force-dynamic';
 
 const REVIEWS_DIR = join(homedir(), 'clawd', 'reviews');
-const BUNDLED_REVIEWS = join(process.cwd(), 'public', 'reviews-data', 'reviews.json');
+// For local development
+const BUNDLED_REVIEWS_LOCAL = join(process.cwd(), 'public', 'reviews-data', 'reviews.json');
+// For production (Vercel serves public files from root)
+const BUNDLED_REVIEWS_URL = 'https://jai-dash.vercel.app/reviews-data/reviews.json';
 
 function parseReviewMd(content, taskName, filePath) {
   // Extract key information from REVIEW.md content
@@ -151,10 +154,23 @@ function parseReviewMd(content, taskName, filePath) {
   };
 }
 
-function loadBundledReviews() {
+async function loadBundledReviews() {
   try {
-    if (existsSync(BUNDLED_REVIEWS)) {
-      const bundledData = JSON.parse(readFileSync(BUNDLED_REVIEWS, 'utf-8'));
+    // Try local file first (development)
+    if (existsSync(BUNDLED_REVIEWS_LOCAL)) {
+      const bundledData = JSON.parse(readFileSync(BUNDLED_REVIEWS_LOCAL, 'utf-8'));
+      return bundledData.reviews.map(review => {
+        const parsed = parseReviewMd(review.content, review.taskName, `bundled:${review.taskId}`);
+        parsed.lastModified = review.lastModified;
+        parsed.deliverableFiles = review.deliverableFiles;
+        return parsed;
+      });
+    }
+    
+    // Try remote URL (production)
+    const response = await fetch(BUNDLED_REVIEWS_URL);
+    if (response.ok) {
+      const bundledData = await response.json();
       return bundledData.reviews.map(review => {
         const parsed = parseReviewMd(review.content, review.taskName, `bundled:${review.taskId}`);
         parsed.lastModified = review.lastModified;
@@ -168,11 +184,11 @@ function loadBundledReviews() {
   return [];
 }
 
-function scanReviewsFolder() {
+async function scanReviewsFolder() {
   // Try bundled data first (for production)
   if (!existsSync(REVIEWS_DIR)) {
     console.log('Local reviews not found, using bundled data');
-    return loadBundledReviews();
+    return await loadBundledReviews();
   }
   
   const reviews = [];
@@ -232,7 +248,7 @@ function scanReviewsFolder() {
 
 export async function GET(request) {
   try {
-    const reviews = scanReviewsFolder();
+    const reviews = await scanReviewsFolder();
     
     // Generate summary statistics
     const summary = {
