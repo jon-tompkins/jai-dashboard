@@ -630,6 +630,10 @@ export default function Dashboard() {
   const [newTask, setNewTask] = useState({ title: '', description: '', assignee: null, priority: 'medium' });
   const [userSchedule, setUserSchedule] = useState(null);
   const [scheduleLoading, setScheduleLoading] = useState(false);
+  const [reviews, setReviews] = useState([]);
+  const [reviewsSummary, setReviewsSummary] = useState({});
+  const [selectedReview, setSelectedReview] = useState(null);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
 
   // Wrapper that uses component state
   const fmtMoney = (n) => formatMoney(n, publicScreenshot);
@@ -637,6 +641,7 @@ export default function Dashboard() {
   useEffect(() => { fetchFitness(); fetchWorkoutLogs(); }, []);
   useEffect(() => { if (tab === 'tasks') fetchKanban(); }, [tab]);
   useEffect(() => { if (tab === 'settings') fetchUserSchedule(); }, [tab]);
+  useEffect(() => { if (tab === 'reviews') fetchReviews(); }, [tab]);
 
   function toggleChart(key) {
     setChartToggles(prev => ({ ...prev, [key]: !prev[key] }));
@@ -760,6 +765,22 @@ export default function Dashboard() {
       setReviewContent(data);
     } catch (e) { console.error(e); }
     setReviewLoading(false);
+  }
+
+  async function fetchReviews() {
+    setReviewsLoading(true);
+    try {
+      const res = await fetch('/api/reviews');
+      const data = await res.json();
+      setReviews(data.reviews || []);
+      setReviewsSummary(data.summary || {});
+      if (data.reviews && data.reviews.length > 0 && !selectedReview) {
+        setSelectedReview(data.reviews[0]);
+      }
+    } catch (e) { 
+      console.error('Error fetching reviews:', e); 
+    }
+    setReviewsLoading(false);
   }
 
   async function fetchJuntoStatus() {
@@ -974,7 +995,7 @@ export default function Dashboard() {
 
       {/* Tabs - horizontal scroll on mobile */}
       <div style={styles.tabs} className="tabs-container">
-        {['portfolio', 'trades', 'assets', 'reports', 'fitness', 'review', 'tasks', 'settings'].map(t => (
+        {['portfolio', 'trades', 'assets', 'reports', 'fitness', 'reviews', 'tasks', 'settings'].map(t => (
           <div key={t} style={tab === t ? styles.tabActive : styles.tab} className="tab-item" onClick={() => setTab(t)}>
             {t.charAt(0).toUpperCase() + t.slice(1)}
           </div>
@@ -1882,102 +1903,405 @@ export default function Dashboard() {
         </div>
       )}
 
-      {tab === 'review' && (
+      {tab === 'reviews' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {/* File List - collapsible on mobile */}
-          <div style={styles.card}>
-            <div 
-              style={{...styles.cardTitle, cursor: 'pointer', marginBottom: reviewFiles.length > 0 && !reviewContent ? '12px' : (reviewContent ? 0 : '12px') }} 
-              onClick={() => setReviewContent(reviewContent ? null : reviewContent)}
-            >
-              <span>📁 Files ({reviewFiles.length}) {reviewContent && selectedReviewFile ? `• ${selectedReviewFile.name}` : ''}</span>
-              <span style={{ fontSize: '12px', color: '#8b949e' }}>{!reviewContent || !selectedReviewFile ? '▼' : '▶ tap to browse'}</span>
+          {/* Header with stats */}
+          <div style={{...styles.card, background: '#0d1117'}}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h2 style={{ margin: 0, fontSize: '20px' }}>📋 Sub-Agent Reviews</h2>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <button 
+                  style={{...styles.btn, background: reviewsLoading ? '#21262d' : '#238636'}} 
+                  onClick={fetchReviews} 
+                  disabled={reviewsLoading}
+                >
+                  {reviewsLoading ? '⏳ Refreshing...' : '🔄 Refresh'}
+                </button>
+              </div>
             </div>
-            <div style={{ maxHeight: reviewContent && selectedReviewFile ? 0 : '50vh', overflow: 'hidden', overflowY: !reviewContent || !selectedReviewFile ? 'auto' : 'hidden', transition: 'max-height 0.2s ease' }}>
-            {reviewFiles.length === 0 ? (
-              <p style={{ color: '#8b949e', fontSize: '14px' }}>Loading files...</p>
-            ) : (
-              Object.entries(reviewFiles.reduce((acc, f) => {
-                if (!acc[f.category]) acc[f.category] = [];
-                acc[f.category].push(f);
-                return acc;
-              }, {})).map(([category, files]) => (
-                <div key={category} style={{ marginBottom: '12px' }}>
-                  <div style={{ fontSize: '11px', color: '#8b949e', textTransform: 'uppercase', marginBottom: '6px', letterSpacing: '0.5px' }}>{category}</div>
-                  {files.map(f => {
-                    const isSelected = selectedReviewFile?.path === f.path;
-                    return (
-                      <div 
-                        key={f.path} 
-                        onClick={() => { setSelectedReviewFile(f); fetchReviewContent(f.path); }}
-                        style={{
-                          padding: '10px 12px',
-                          margin: '4px 0',
-                          background: isSelected ? '#21262d' : '#0d1117',
-                          border: `1px solid ${isSelected ? '#58a6ff' : '#30363d'}`,
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          transition: 'all 0.15s ease'
-                        }}
-                      >
-                        <div style={{ fontWeight: 500, fontSize: '14px' }}>📄 {f.name}</div>
-                        <div style={{ fontSize: '11px', color: '#8b949e', marginTop: '4px' }}>
-                          {(f.size / 1024).toFixed(1)} KB • {new Date(f.modified).toLocaleDateString()}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ))
-            )}
+            
+            {/* Status Summary */}
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#3fb950' }} />
+                <span style={{ fontSize: '13px', color: '#8b949e' }}>Ready to Test ({reviewsSummary['ready-to-test'] || 0})</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#d29922' }} />
+                <span style={{ fontSize: '13px', color: '#8b949e' }}>Needs Setup ({reviewsSummary['needs-setup'] || 0})</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#f85149' }} />
+                <span style={{ fontSize: '13px', color: '#8b949e' }}>Needs Action ({reviewsSummary['needs-action'] || 0})</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ width: '12px', height: '12px', borderRadius: '50%', background: '#58a6ff' }} />
+                <span style={{ fontSize: '13px', color: '#8b949e' }}>Complete ({reviewsSummary['complete'] || 0})</span>
+              </div>
+            </div>
+            
+            <div style={{ fontSize: '14px', color: '#8b949e' }}>
+              Review completed deliverables, testing instructions, and next steps for each sub-agent task.
             </div>
           </div>
 
-          {/* File Content Viewer */}
-          <div style={{...styles.card, flex: 1, overflowY: 'auto'}}>
-            {reviewLoading ? (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '200px', color: '#8b949e' }}>
-                ⏳ Loading...
+          {reviewsLoading ? (
+            <div style={{...styles.card, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '300px'}}>
+              <div style={{ color: '#8b949e', fontSize: '16px' }}>⏳ Loading reviews...</div>
+            </div>
+          ) : reviews.length === 0 ? (
+            <div style={{...styles.card, display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '300px'}}>
+              <div style={{ textAlign: 'center', color: '#8b949e' }}>
+                <div style={{ fontSize: '48px', marginBottom: '16px' }}>📋</div>
+                <div style={{ fontSize: '16px', marginBottom: '8px' }}>No reviews found</div>
+                <div style={{ fontSize: '14px' }}>Completed sub-agent deliverables will appear here</div>
               </div>
-            ) : reviewContent ? (
-              <>
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  gap: '8px',
-                  marginBottom: '16px',
-                  paddingBottom: '12px',
-                  borderBottom: '1px solid #30363d',
-                  position: 'sticky',
-                  top: 0,
-                  background: '#161b22',
-                  zIndex: 10
-                }}>
-                  <h2 style={{ margin: 0, fontSize: '18px', flex: 1 }}>📄 {reviewContent.name}</h2>
-                  <button 
-                    style={{...styles.btn, fontSize: '11px', padding: '4px 10px', minHeight: 'auto'}} 
-                    onClick={() => { setReviewContent(null); setSelectedReviewFile(null); }}
-                  >
-                    ← Back to list
-                  </button>
+            </div>
+          ) : (
+            <div className="review-grid" style={{ display: 'grid', gridTemplateColumns: selectedReview ? 'minmax(200px, 280px) 1fr' : '1fr', gap: '16px' }}>
+              {/* Task Cards List */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {reviews.map(review => {
+                  const isSelected = selectedReview?.taskId === review.taskId;
+                  const statusColor = 
+                    review.status === 'ready-to-test' ? '#3fb950' :
+                    review.status === 'needs-setup' ? '#d29922' :
+                    review.status === 'needs-action' ? '#f85149' :
+                    review.status === 'complete' ? '#58a6ff' :
+                    review.status === 'deployed' ? '#8957e5' : '#8b949e';
+                  
+                  const statusIcon = 
+                    review.status === 'ready-to-test' ? '🟢' :
+                    review.status === 'needs-setup' ? '🟡' :
+                    review.status === 'needs-action' ? '🟠' :
+                    review.status === 'complete' ? '✅' :
+                    review.status === 'deployed' ? '🚀' : '⚪';
+                  
+                  const statusLabel = 
+                    review.status === 'ready-to-test' ? 'Ready to Test' :
+                    review.status === 'needs-setup' ? 'Needs Setup' :
+                    review.status === 'needs-action' ? 'Needs Action' :
+                    review.status === 'complete' ? 'Complete' :
+                    review.status === 'deployed' ? 'Deployed' : 'Unknown';
+
+                  return (
+                    <div 
+                      key={review.taskId}
+                      onClick={() => setSelectedReview(isSelected ? null : review)}
+                      style={{
+                        ...styles.card,
+                        background: isSelected ? '#21262d' : '#161b22',
+                        border: `1px solid ${isSelected ? statusColor : '#30363d'}`,
+                        borderLeft: `4px solid ${statusColor}`,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      {/* Header */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: '16px', fontWeight: '600', marginBottom: '4px' }}>
+                            {review.taskName}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{
+                              ...styles.tag, 
+                              background: statusColor + '33',
+                              color: statusColor,
+                              fontWeight: '500',
+                              fontSize: '11px'
+                            }}>
+                              {statusIcon} {statusLabel}
+                            </span>
+                          </div>
+                        </div>
+                        <div style={{ fontSize: '11px', color: '#8b949e', textAlign: 'right' }}>
+                          {new Date(review.lastModified).toLocaleDateString()}
+                        </div>
+                      </div>
+
+                      {/* What was built */}
+                      <div style={{ fontSize: '13px', color: '#8b949e', marginBottom: '12px', lineHeight: '1.4' }}>
+                        {review.whatBuilt.slice(0, 120)}{review.whatBuilt.length > 120 ? '...' : ''}
+                      </div>
+
+                      {/* Key features preview */}
+                      {review.keyFeatures.length > 0 && (
+                        <div style={{ marginBottom: '12px' }}>
+                          <div style={{ fontSize: '11px', color: '#8b949e', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                            Key Features
+                          </div>
+                          <div style={{ fontSize: '12px', color: '#e6edf3' }}>
+                            {review.keyFeatures.slice(0, 2).map((feature, i) => (
+                              <div key={i} style={{ marginBottom: '2px' }}>• {feature}</div>
+                            ))}
+                            {review.keyFeatures.length > 2 && (
+                              <div style={{ color: '#8b949e', fontSize: '11px' }}>
+                                +{review.keyFeatures.length - 2} more...
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Ready For checklist preview */}
+                      {review.readyFor.length > 0 && (
+                        <div style={{ marginBottom: '8px' }}>
+                          <div style={{ fontSize: '11px', color: '#8b949e', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                            Ready For
+                          </div>
+                          <div style={{ display: 'flex', flex: 'wrap', gap: '4px', alignItems: 'center' }}>
+                            {review.readyFor.slice(0, 3).map((item, i) => (
+                              <span key={i} style={{ 
+                                fontSize: '10px',
+                                padding: '2px 6px',
+                                background: item.completed ? '#238636' : '#30363d',
+                                color: item.completed ? '#e6edf3' : '#8b949e',
+                                borderRadius: '4px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '2px'
+                              }}>
+                                {item.completed ? '✓' : '○'} {item.text.slice(0, 20)}{item.text.length > 20 ? '...' : ''}
+                              </span>
+                            ))}
+                            {review.readyFor.length > 3 && (
+                              <span style={{ fontSize: '10px', color: '#8b949e' }}>+{review.readyFor.length - 3}</span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Deliverable count */}
+                      {review.deliverableFiles.length > 0 && (
+                        <div style={{ fontSize: '11px', color: '#8b949e', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          📁 {review.deliverableFiles.length} deliverable{review.deliverableFiles.length !== 1 ? 's' : ''}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Detailed View */}
+              {selectedReview && (
+                <div style={{...styles.card, flex: 1, maxHeight: '80vh', overflowY: 'auto'}}>
+                  <div style={{ 
+                    position: 'sticky',
+                    top: 0,
+                    background: '#161b22',
+                    paddingBottom: '16px',
+                    marginBottom: '16px',
+                    borderBottom: '1px solid #30363d',
+                    zIndex: 10
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                      <div style={{ flex: 1 }}>
+                        <h2 style={{ margin: 0, fontSize: '20px', marginBottom: '8px' }}>
+                          {selectedReview.taskName}
+                        </h2>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <span style={{
+                            ...styles.tag,
+                            background: 
+                              selectedReview.status === 'ready-to-test' ? '#3fb950' :
+                              selectedReview.status === 'needs-setup' ? '#d29922' :
+                              selectedReview.status === 'needs-action' ? '#f85149' :
+                              selectedReview.status === 'complete' ? '#58a6ff' :
+                              selectedReview.status === 'deployed' ? '#8957e5' : '#8b949e',
+                            fontWeight: '600',
+                            fontSize: '12px'
+                          }}>
+                            {selectedReview.status === 'ready-to-test' ? '🟢 Ready to Test' :
+                             selectedReview.status === 'needs-setup' ? '🟡 Needs Setup' :
+                             selectedReview.status === 'needs-action' ? '🟠 Needs Action' :
+                             selectedReview.status === 'complete' ? '✅ Complete' :
+                             selectedReview.status === 'deployed' ? '🚀 Deployed' : '⚪ Unknown'}
+                          </span>
+                          <span style={{ fontSize: '12px', color: '#8b949e' }}>
+                            Updated {new Date(selectedReview.lastModified).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </div>
+                      <button 
+                        style={{...styles.btn, fontSize: '11px', padding: '6px 12px', minHeight: 'auto'}}
+                        onClick={() => setSelectedReview(null)}
+                      >
+                        ← Back
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* What Was Built */}
+                  <div style={{ marginBottom: '24px' }}>
+                    <h3 style={{ fontSize: '16px', color: '#58a6ff', margin: '0 0 12px', borderBottom: '1px solid #30363d', paddingBottom: '6px' }}>
+                      🔨 What Was Built
+                    </h3>
+                    <div style={{ fontSize: '14px', lineHeight: '1.6', color: '#e6edf3' }}>
+                      {selectedReview.whatBuilt}
+                    </div>
+                  </div>
+
+                  {/* Key Features */}
+                  {selectedReview.keyFeatures.length > 0 && (
+                    <div style={{ marginBottom: '24px' }}>
+                      <h3 style={{ fontSize: '16px', color: '#58a6ff', margin: '0 0 12px', borderBottom: '1px solid #30363d', paddingBottom: '6px' }}>
+                        ⭐ Key Features
+                      </h3>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {selectedReview.keyFeatures.map((feature, i) => (
+                          <div key={i} style={{ 
+                            display: 'flex', 
+                            alignItems: 'flex-start', 
+                            gap: '8px',
+                            padding: '8px',
+                            background: '#0d1117',
+                            borderRadius: '6px',
+                            border: '1px solid #21262d'
+                          }}>
+                            <span style={{ color: '#3fb950', fontSize: '12px', marginTop: '2px' }}>✓</span>
+                            <span style={{ fontSize: '14px', lineHeight: '1.5' }}>{feature}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Testing Instructions */}
+                  {selectedReview.testingInstructions && (
+                    <div style={{ marginBottom: '24px' }}>
+                      <h3 style={{ fontSize: '16px', color: '#58a6ff', margin: '0 0 12px', borderBottom: '1px solid #30363d', paddingBottom: '6px' }}>
+                        🧪 Testing Instructions
+                      </h3>
+                      <div style={{
+                        background: '#0d1117',
+                        border: '1px solid #21262d',
+                        borderRadius: '8px',
+                        padding: '16px'
+                      }}>
+                        <div 
+                          style={{ fontSize: '13px', lineHeight: '1.6', fontFamily: 'monospace' }}
+                          dangerouslySetInnerHTML={{ __html: renderMarkdown(selectedReview.testingInstructions) }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Required Setup */}
+                  {selectedReview.requiredSetup && (
+                    <div style={{ marginBottom: '24px' }}>
+                      <h3 style={{ fontSize: '16px', color: '#58a6ff', margin: '0 0 12px', borderBottom: '1px solid #30363d', paddingBottom: '6px' }}>
+                        ⚙️ Required Setup
+                      </h3>
+                      <div style={{
+                        background: '#0d1117',
+                        border: '1px solid #d29922',
+                        borderRadius: '8px',
+                        padding: '16px'
+                      }}>
+                        <div 
+                          style={{ fontSize: '14px', lineHeight: '1.6' }}
+                          dangerouslySetInnerHTML={{ __html: renderMarkdown(selectedReview.requiredSetup) }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Ready For Checklist */}
+                  {selectedReview.readyFor.length > 0 && (
+                    <div style={{ marginBottom: '24px' }}>
+                      <h3 style={{ fontSize: '16px', color: '#58a6ff', margin: '0 0 12px', borderBottom: '1px solid #30363d', paddingBottom: '6px' }}>
+                        ✅ Ready For
+                      </h3>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {selectedReview.readyFor.map((item, i) => (
+                          <div key={i} style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px',
+                            padding: '12px',
+                            background: item.completed ? '#238636' + '22' : '#21262d',
+                            border: `1px solid ${item.completed ? '#238636' : '#30363d'}`,
+                            borderRadius: '6px'
+                          }}>
+                            <span style={{ 
+                              fontSize: '16px',
+                              color: item.completed ? '#3fb950' : '#8b949e'
+                            }}>
+                              {item.completed ? '✅' : '☐'}
+                            </span>
+                            <span style={{ 
+                              fontSize: '14px', 
+                              color: item.completed ? '#e6edf3' : '#8b949e',
+                              textDecoration: item.completed ? 'line-through' : 'none'
+                            }}>
+                              {item.text}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Deliverable Files */}
+                  {selectedReview.deliverableFiles.length > 0 && (
+                    <div style={{ marginBottom: '24px' }}>
+                      <h3 style={{ fontSize: '16px', color: '#58a6ff', margin: '0 0 12px', borderBottom: '1px solid #30363d', paddingBottom: '6px' }}>
+                        📁 Deliverable Files
+                      </h3>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '8px' }}>
+                        {selectedReview.deliverableFiles.map((file, i) => (
+                          <div key={i} style={{
+                            padding: '8px 12px',
+                            background: '#0d1117',
+                            border: '1px solid #30363d',
+                            borderRadius: '6px',
+                            fontSize: '12px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px'
+                          }}>
+                            <span>{file.type === 'folder' ? '📂' : '📄'}</span>
+                            <span>{file.name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Full Content (collapsible) */}
+                  <div style={{ borderTop: '1px solid #30363d', paddingTop: '16px' }}>
+                    <details style={{ fontSize: '14px' }}>
+                      <summary style={{ 
+                        cursor: 'pointer', 
+                        color: '#58a6ff', 
+                        marginBottom: '12px',
+                        fontSize: '16px',
+                        fontWeight: '500'
+                      }}>
+                        📄 View Full REVIEW.md Content
+                      </summary>
+                      <div 
+                        style={{ 
+                          background: '#0d1117',
+                          border: '1px solid #30363d',
+                          borderRadius: '8px',
+                          padding: '16px',
+                          fontSize: '13px',
+                          lineHeight: '1.6',
+                          fontFamily: 'monospace',
+                          whiteSpace: 'pre-wrap',
+                          color: '#8b949e'
+                        }}
+                      >
+                        {selectedReview.fullContent}
+                      </div>
+                    </details>
+                  </div>
                 </div>
-                <div 
-                  style={{ 
-                    fontSize: '14px', 
-                    lineHeight: '1.7',
-                    color: '#e6edf3'
-                  }} 
-                  dangerouslySetInnerHTML={{ __html: renderMarkdown(reviewContent.content) }} 
-                />
-              </>
-            ) : (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '200px', color: '#8b949e' }}>
-                ← Select a file to view
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
