@@ -132,6 +132,102 @@ async function sendNewsletter(user, content) {
   }
 }
 
+// Function to get users due for newsletter (implemented in JS since DB function may not be available)
+async function getUsersDueForNewsletter(currentUtcTime) {
+  try {
+    // Get all users with scheduling preferences
+    const users = await supabaseQuery(
+      'users', 
+      'select=id,email,preferred_send_time,timezone,last_newsletter_sent,send_frequency,weekend_delivery&preferred_send_time=not.is.null&timezone=not.is.null&email=not.is.null'
+    );
+    
+    const currentDate = new Date(currentUtcTime);
+    const windowStart = new Date(currentDate.getTime());
+    windowStart.setSeconds(0, 0); // Round down to minute
+    const windowEnd = new Date(windowStart.getTime() + 5 * 60 * 1000); // Add 5 minutes
+    
+    const usersDue = [];
+    
+    for (const user of users) {
+      try {
+        // Calculate when this user's preferred time occurs in UTC
+        const [hours, minutes] = user.preferred_send_time.split(':').map(Number);
+        
+        // Create a date object for today at the user's preferred time in their timezone
+        const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD format
+        const userLocalTimeStr = `${today}T${user.preferred_send_time}`;
+        
+        // Convert to UTC
+        const userLocalTime = new Date(userLocalTimeStr);
+        const timezoneOffset = getTimezoneOffset(user.timezone, userLocalTime);
+        const userUtcTime = new Date(userLocalTime.getTime() - timezoneOffset);
+        
+        // Check if user's preferred UTC time falls within our 5-minute window
+        if (userUtcTime >= windowStart && userUtcTime < windowEnd) {
+          // Check frequency requirements
+          const lastSent = user.last_newsletter_sent ? new Date(user.last_newsletter_sent) : null;
+          const daysSinceLastSent = lastSent ? Math.floor((currentDate - lastSent) / (1000 * 60 * 60 * 24)) : 999;
+          
+          let shouldSend = false;
+          
+          switch (user.send_frequency) {
+            case 'daily':
+              shouldSend = !lastSent || daysSinceLastSent >= 1;
+              break;
+            case 'weekly':
+              shouldSend = !lastSent || daysSinceLastSent >= 7;
+              break;
+            case 'bi-weekly':
+              shouldSend = !lastSent || daysSinceLastSent >= 14;
+              break;
+            default:
+              shouldSend = !lastSent || daysSinceLastSent >= 1;
+          }
+          
+          // Check weekend delivery preference
+          const isWeekend = currentDate.getDay() === 0 || currentDate.getDay() === 6;
+          if (isWeekend && !user.weekend_delivery) {
+            shouldSend = false;
+          }
+          
+          if (shouldSend) {
+            usersDue.push({
+              user_id: user.id,
+              email: user.email,
+              preferred_send_time: user.preferred_send_time,
+              timezone: user.timezone,
+              local_send_time: userUtcTime.toISOString(),
+              last_newsletter_sent: user.last_newsletter_sent,
+              send_frequency: user.send_frequency
+            });
+          }
+        }
+      } catch (userError) {
+        console.error(`Error processing user ${user.email}:`, userError);
+        // Continue with other users
+      }
+    }
+    
+    return usersDue;
+  } catch (error) {
+    console.error('Error getting users due for newsletter:', error);
+    throw error;
+  }
+}
+
+// Helper function to get timezone offset (simplified)
+function getTimezoneOffset(timezone, date) {
+  try {
+    // This is a simplified approach - in production, you'd want a more robust timezone library
+    const utcDate = new Date(date.toLocaleString('en-US', { timeZone: 'UTC' }));
+    const localDate = new Date(date.toLocaleString('en-US', { timeZone: timezone }));
+    return localDate.getTime() - utcDate.getTime();
+  } catch (error) {
+    console.error('Error calculating timezone offset:', error);
+    return 0; // Default to UTC
+  }
+}
+
 // Main API route handler
 export async function GET(request) {
   const startTime = Date.now();
@@ -151,10 +247,16 @@ export async function GET(request) {
     // Get current time for this check
     const currentTime = new Date().toISOString();
     
-    // Call our custom function to get users due for newsletters
-    const usersDue = await callSupabaseFunction('get_users_due_for_newsletter', {
-      current_utc_time: currentTime
-    });
+    // Get users due for newsletters (using direct implementation instead of DB function)
+    let usersDue;
+    try {
+      usersDue = await callSupabaseFunction('get_users_due_for_newsletter', {
+        current_utc_time: currentTime
+      });
+    } catch (dbFunctionError) {
+      console.log('⚠️ Database function not available, using fallback implementation');
+      usersDue = await getUsersDueForNewsletter(currentTime);
+    }
     
     logData.users_checked = usersDue.length;
     
