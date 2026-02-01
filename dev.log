@@ -1,0 +1,63 @@
+
+> jai-dashboard@1.0.0 dev
+> next dev
+
+   ▲ Next.js 14.0.4
+   - Local:        http://localhost:3000
+
+ ✓ Ready in 1371ms
+ ✓ Compiled /api/newsletter/check-scheduled in 317ms (20 modules)
+🕐 Checking for scheduled newsletters...
+💥 Scheduling check failed: Error: Supabase RPC call failed: 404 Not Found
+    at callSupabaseFunction (webpack-internal:///(rsc)/./app/api/newsletter/check-scheduled/route.js:20:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async GET (webpack-internal:///(rsc)/./app/api/newsletter/check-scheduled/route.js:147:26)
+    at async /home/ubuntu/clawd/jai-dashboard/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:6:63251
+Failed to log error: SyntaxError: Unexpected end of JSON input
+    at JSON.parse (<anonymous>)
+    at parseJSONFromBytes (node:internal/deps/undici/undici:5852:19)
+    at successSteps (node:internal/deps/undici/undici:5833:27)
+    at fullyReadBody (node:internal/deps/undici/undici:4725:9)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async consumeBody (node:internal/deps/undici/undici:5842:7)
+    at async GET (webpack-internal:///(rsc)/./app/api/newsletter/check-scheduled/route.js:245:13)
+    at async /home/ubuntu/clawd/jai-dashboard/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:6:63251
+ ✓ Compiled in 2s (204 modules)
+ ✓ Compiled /api/check-scheduled-users in 101ms (22 modules)
+🕐 Checking for scheduled newsletters...
+💥 Scheduling check failed: Error: Supabase RPC call failed: 404 Not Found
+    at callSupabaseFunction (webpack-internal:///(rsc)/./app/api/check-scheduled-users/route.js:20:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async POST (webpack-internal:///(rsc)/./app/api/check-scheduled-users/route.js:147:26)
+    at async /home/ubuntu/clawd/jai-dashboard/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:6:63251
+Failed to log error: SyntaxError: Unexpected end of JSON input
+    at JSON.parse (<anonymous>)
+    at parseJSONFromBytes (node:internal/deps/undici/undici:5852:19)
+    at successSteps (node:internal/deps/undici/undici:5833:27)
+    at fullyReadBody (node:internal/deps/undici/undici:4725:9)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async consumeBody (node:internal/deps/undici/undici:5842:7)
+    at async POST (webpack-internal:///(rsc)/./app/api/check-scheduled-users/route.js:245:13)
+    at async /home/ubuntu/clawd/jai-dashboard/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:6:63251
+ ✓ Compiled in 80ms (20 modules)
+🕐 Checking for scheduled newsletters...
+⚠️ Database function not available, using fallback implementation
+✅ No users due for newsletters at this time
+💥 Scheduling check failed: SyntaxError: Unexpected end of JSON input
+    at JSON.parse (<anonymous>)
+    at parseJSONFromBytes (node:internal/deps/undici/undici:5852:19)
+    at successSteps (node:internal/deps/undici/undici:5833:27)
+    at fullyReadBody (node:internal/deps/undici/undici:4725:9)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async consumeBody (node:internal/deps/undici/undici:5842:7)
+    at async POST (webpack-internal:///(rsc)/./app/api/check-scheduled-users/route.js:303:9)
+    at async /home/ubuntu/clawd/jai-dashboard/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:6:63251
+Failed to log error: SyntaxError: Unexpected end of JSON input
+    at JSON.parse (<anonymous>)
+    at parseJSONFromBytes (node:internal/deps/undici/undici:5852:19)
+    at successSteps (node:internal/deps/undici/undici:5833:27)
+    at fullyReadBody (node:internal/deps/undici/undici:4725:9)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async consumeBody (node:internal/deps/undici/undici:5842:7)
+    at async POST (webpack-internal:///(rsc)/./app/api/check-scheduled-users/route.js:335:13)
+    at async /home/ubuntu/clawd/jai-dashboard/node_modules/next/dist/compiled/next-server/app-route.runtime.dev.js:6:63251
