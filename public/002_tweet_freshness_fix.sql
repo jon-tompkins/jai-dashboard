@@ -156,8 +156,8 @@ BEGIN
   END IF;
 END $$;
 
--- Update subject from title for existing rows
-UPDATE newsletters SET subject = title WHERE subject IS NULL AND title IS NOT NULL;
+-- Update subject from title for existing rows (skipped - title column doesn't exist)
+-- UPDATE newsletters SET subject = title WHERE subject IS NULL AND title IS NOT NULL;
 
 -- 6. SEED INITIAL PROFILES
 -- =============================================================================
