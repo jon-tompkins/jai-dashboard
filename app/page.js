@@ -89,7 +89,9 @@ const styles = {
   red: { color: '#f85149' },
   table: { width: '100%', borderCollapse: 'collapse', fontSize: '13px', marginTop: '12px' },
   th: { textAlign: 'left', padding: '8px 4px', borderBottom: '1px solid #30363d', color: '#8b949e', fontWeight: '500', whiteSpace: 'nowrap' },
+  thRight: { textAlign: 'right', padding: '8px 4px', borderBottom: '1px solid #30363d', color: '#8b949e', fontWeight: '500', whiteSpace: 'nowrap' },
   td: { padding: '8px 4px', borderBottom: '1px solid #21262d' },
+  tdRight: { textAlign: 'right', padding: '8px 4px', borderBottom: '1px solid #21262d', fontVariantNumeric: 'tabular-nums' },
   tag: { display: 'inline-block', padding: '2px 8px', borderRadius: '12px', fontSize: '11px', marginRight: '4px' },
   btn: { 
     padding: '8px 16px', 
@@ -168,10 +170,10 @@ function HoldingsRow({ holding, s, publicScreenshot, formatMoney, formatPct }) {
             holding.type === 'OPTIONS' ? '#d29922' : '#a371f7'
           }}>{holding.type}</span>
         </td>
-        <td style={styles.td}>${holding.price?.toFixed(2)}</td>
-        <td style={styles.td}>{formatMoney(holding.value)}</td>
-        <td style={styles.td}>{formatMoney(holding.notional)}</td>
-        <td style={{...styles.td, ...(holding.pl >= 0 ? styles.green : styles.red)}}>
+        <td style={styles.tdRight}>${holding.price?.toFixed(2)}</td>
+        <td style={styles.tdRight}>{formatMoney(holding.value)}</td>
+        <td style={styles.tdRight}>{formatMoney(holding.notional)}</td>
+        <td style={{...styles.tdRight, ...(holding.pl >= 0 ? styles.green : styles.red)}}>
           {formatMoney(holding.pl)} ({formatPct(holding.plPct)})
         </td>
         <td style={styles.td}>
@@ -1049,10 +1051,10 @@ export default function Dashboard() {
                 <tr>
                   <th style={styles.th}>Symbol</th>
                   <th style={styles.th}>Type</th>
-                  <th style={styles.th}>Price</th>
-                  <th style={styles.th}>Value</th>
-                  <th style={styles.th}>Notional</th>
-                  <th style={styles.th}>P/L</th>
+                  <th style={styles.thRight}>Price</th>
+                  <th style={styles.thRight}>Value</th>
+                  <th style={styles.thRight}>Notional</th>
+                  <th style={styles.thRight}>P/L</th>
                   <th style={styles.th}></th>
                 </tr>
               </thead>

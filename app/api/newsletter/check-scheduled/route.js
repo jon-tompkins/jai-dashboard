@@ -1,25 +1,6 @@
 const SUPABASE_URL = "https://lsqlqssigerzghlxfxjl.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxzcWxxc3NpZ2VyemdobHhmeGpsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk1NDA5NTEsImV4cCI6MjA4NTExNjk1MX0.jqoZUtW_gb8rehPteVgjmLLLlPRLYV-0fNJkpLGcf-s";
 
-// Helper function to call Supabase RPC functions
-async function callSupabaseFunction(functionName, params = {}) {
-  const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${functionName}`, {
-    method: 'POST',
-    headers: {
-      'apikey': SUPABASE_KEY,
-      'Authorization': `Bearer ${SUPABASE_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(params)
-  });
-  
-  if (!response.ok) {
-    throw new Error(`Supabase RPC call failed: ${response.status} ${response.statusText}`);
-  }
-  
-  return response.json();
-}
-
 // Helper function to fetch from Supabase REST API
 async function supabaseQuery(table, query = '', options = {}) {
   const url = new URL(`${SUPABASE_URL}/rest/v1/${table}`);
@@ -37,42 +18,196 @@ async function supabaseQuery(table, query = '', options = {}) {
   });
   
   if (!response.ok) {
-    throw new Error(`Supabase query failed: ${response.status} ${response.statusText}`);
+    const errorText = await response.text();
+    throw new Error(`Supabase query failed: ${response.status} - ${errorText}`);
   }
   
   return response.json();
 }
 
+// Helper to get greeting based on time
+function getTimeOfDayGreeting(timeString) {
+  const hour = parseInt(timeString.split(':')[0]);
+  if (hour < 12) return 'Morning';
+  if (hour < 17) return 'Afternoon';
+  return 'Evening';
+}
+
+// Get current time in a specific timezone
+function getCurrentTimeInTimezone(timezone) {
+  const now = new Date();
+  // Get the local time string in the specified timezone
+  const options = {
+    timeZone: timezone,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  };
+  return new Intl.DateTimeFormat('en-GB', options).format(now);
+}
+
+// Get current date in a specific timezone (YYYY-MM-DD)
+function getCurrentDateInTimezone(timezone) {
+  const now = new Date();
+  const options = {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  };
+  // Format: MM/DD/YYYY -> YYYY-MM-DD
+  const parts = new Intl.DateTimeFormat('en-US', options).formatToParts(now);
+  const month = parts.find(p => p.type === 'month').value;
+  const day = parts.find(p => p.type === 'day').value;
+  const year = parts.find(p => p.type === 'year').value;
+  return `${year}-${month}-${day}`;
+}
+
+// Compare time strings (HH:MM:SS format)
+function timeHasPassed(preferredTime, currentTime) {
+  const [prefH, prefM] = preferredTime.split(':').map(Number);
+  const [curH, curM] = currentTime.split(':').map(Number);
+  
+  if (curH > prefH) return true;
+  if (curH === prefH && curM >= prefM) return true;
+  return false;
+}
+
+// Check if user should receive newsletter based on frequency
+function shouldSendBasedOnFrequency(lastSent, frequency) {
+  if (!lastSent) return true; // Never sent before
+  
+  const lastDate = new Date(lastSent);
+  const now = new Date();
+  const daysDiff = Math.floor((now - lastDate) / (1000 * 60 * 60 * 24));
+  
+  switch (frequency) {
+    case 'daily':
+      return daysDiff >= 1;
+    case 'weekly':
+      return daysDiff >= 7;
+    case 'bi-weekly':
+      return daysDiff >= 14;
+    default:
+      return daysDiff >= 1;
+  }
+}
+
+// Check if today is a weekend
+function isWeekendInTimezone(timezone) {
+  const now = new Date();
+  const options = { timeZone: timezone, weekday: 'short' };
+  const dayName = new Intl.DateTimeFormat('en-US', options).format(now);
+  return dayName === 'Sat' || dayName === 'Sun';
+}
+
+/**
+ * Get users who are due for newsletter delivery.
+ * Per spec: "Looks for users with delivery times less than current time 
+ * that have not had a newsletter delivered"
+ */
+async function getUsersDueForNewsletter() {
+  try {
+    // Get all users with email and scheduling preferences set
+    const users = await supabaseQuery(
+      'users', 
+      'select=id,email,name,preferred_send_time,timezone,last_newsletter_sent,send_frequency,weekend_delivery,custom_prompt,settings&email=not.is.null&preferred_send_time=not.is.null&timezone=not.is.null'
+    );
+    
+    console.log(`📋 Found ${users.length} users with scheduling preferences`);
+    
+    const usersDue = [];
+    
+    for (const user of users) {
+      try {
+        // Get current time in user's timezone
+        const currentTimeInUserTz = getCurrentTimeInTimezone(user.timezone);
+        const currentDateInUserTz = getCurrentDateInTimezone(user.timezone);
+        
+        // Check if delivery time has passed in user's timezone
+        if (!timeHasPassed(user.preferred_send_time, currentTimeInUserTz)) {
+          console.log(`⏰ ${user.email}: Delivery time ${user.preferred_send_time} not yet reached (current: ${currentTimeInUserTz} ${user.timezone})`);
+          continue;
+        }
+        
+        // Check weekend preference
+        if (isWeekendInTimezone(user.timezone) && !user.weekend_delivery) {
+          console.log(`📅 ${user.email}: Skipping weekend delivery (weekend_delivery=false)`);
+          continue;
+        }
+        
+        // Check if already sent today (based on user's timezone date)
+        // last_newsletter_sent is stored as a date, so compare dates
+        if (user.last_newsletter_sent === currentDateInUserTz) {
+          console.log(`✅ ${user.email}: Already sent newsletter today (${user.last_newsletter_sent})`);
+          continue;
+        }
+        
+        // Check frequency requirements
+        if (!shouldSendBasedOnFrequency(user.last_newsletter_sent, user.send_frequency)) {
+          console.log(`📊 ${user.email}: Frequency check failed (${user.send_frequency}, last sent: ${user.last_newsletter_sent})`);
+          continue;
+        }
+        
+        console.log(`✨ ${user.email}: DUE for newsletter (time: ${user.preferred_send_time}, tz: ${user.timezone})`);
+        usersDue.push({
+          user_id: user.id,
+          email: user.email,
+          name: user.name,
+          preferred_send_time: user.preferred_send_time,
+          timezone: user.timezone,
+          last_newsletter_sent: user.last_newsletter_sent,
+          send_frequency: user.send_frequency,
+          custom_prompt: user.custom_prompt,
+          settings: user.settings
+        });
+        
+      } catch (userError) {
+        console.error(`❌ Error processing user ${user.email}:`, userError.message);
+      }
+    }
+    
+    return usersDue;
+  } catch (error) {
+    console.error('Error getting users due for newsletter:', error);
+    throw error;
+  }
+}
+
 // Function to generate newsletter content for a user
 async function generateNewsletterContent(user) {
   try {
-    // For now, create a simple newsletter structure
-    // In the future, this could integrate with AI/tweet aggregation
+    const todayDate = new Date().toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+    
     const content = {
-      title: `Daily Brief - ${new Date().toLocaleDateString()}`,
-      summary: "Your personalized newsletter is being prepared...",
+      title: `Daily Brief - ${todayDate}`,
+      summary: "Your personalized newsletter digest",
       type: 'daily_scheduled',
       user_timezone: user.timezone,
       user_send_time: user.preferred_send_time,
       generated_at: new Date().toISOString(),
-      content: `# Daily Brief for ${user.email}
+      content: `# Daily Brief for ${user.name || user.email}
       
 ## Good ${getTimeOfDayGreeting(user.preferred_send_time)}!
 
-This is your scheduled newsletter for ${new Date().toLocaleDateString()}.
+This is your scheduled newsletter for ${todayDate}.
 
-### Key Updates
-- Newsletter system is now personalized for your timezone: ${user.timezone}
-- Scheduled delivery at: ${user.preferred_send_time}
+### Your Settings
+- Timezone: ${user.timezone}
+- Delivery time: ${user.preferred_send_time}
 - Frequency: ${user.send_frequency}
 
-### Coming Soon
-- Tweet aggregation from your followed accounts
-- AI-generated summaries
-- Personalized content based on your interests
+### Status
+✅ Newsletter delivery is working!
 
 ---
-*This newsletter was automatically generated and sent at your preferred time.*
+*Delivered by MyJunto at your preferred time.*
 `
     };
     
@@ -89,30 +224,19 @@ This is your scheduled newsletter for ${new Date().toLocaleDateString()}.
   }
 }
 
-// Helper to get greeting based on time
-function getTimeOfDayGreeting(timeString) {
-  const hour = parseInt(timeString.split(':')[0]);
-  if (hour < 12) return 'Morning';
-  if (hour < 17) return 'Afternoon';
-  return 'Evening';
-}
-
-// Function to actually send newsletter (placeholder for now)
-async function sendNewsletter(user, content) {
+// Function to create newsletter and queue entry
+async function createAndSendNewsletter(user, content) {
   try {
-    // For now, just create a newsletter record in the database
-    // In the future, this could integrate with email service, push notifications, etc.
-    
+    // 1. Create newsletter record
     const newsletterData = {
       title: content.title,
       content: content.content,
       summary: content.summary,
       type: 'scheduled_personal',
       referenced_assets: [],
-      source_accounts: [`user_${user.user_id}`],
+      source_accounts: []
     };
     
-    // Insert newsletter into newsletters table
     const newsletters = await supabaseQuery('newsletters', '', {
       method: 'POST',
       headers: { 'Prefer': 'return=representation' },
@@ -120,111 +244,60 @@ async function sendNewsletter(user, content) {
     });
     
     const newsletter = newsletters[0];
+    console.log(`📰 Created newsletter ${newsletter.id} for ${user.email}`);
     
-    // Log successful send
-    console.log(`Newsletter sent to ${user.email}: ${newsletter.id}`);
+    // 2. Create queue entry (for tracking)
+    const queueData = {
+      user_id: user.user_id,
+      scheduled_for: new Date().toISOString(),
+      status: 'sent',
+      newsletter_id: newsletter.id,
+      content: content,
+      send_attempts: 1,
+      last_attempt_at: new Date().toISOString()
+    };
+    
+    await supabaseQuery('newsletter_queue', '', {
+      method: 'POST',
+      body: queueData
+    });
+    
+    // 3. Update user's last_newsletter_sent to TODAY (in their timezone)
+    const todayInUserTz = getCurrentDateInTimezone(user.timezone);
+    await supabaseQuery('users', `id=eq.${user.user_id}`, {
+      method: 'PATCH',
+      body: {
+        last_newsletter_sent: todayInUserTz,
+        updated_at: new Date().toISOString()
+      }
+    });
+    
+    console.log(`✅ Newsletter sent to ${user.email}, updated last_newsletter_sent to ${todayInUserTz}`);
     
     return newsletter;
     
   } catch (error) {
-    console.error('Error sending newsletter:', error);
-    throw error;
-  }
-}
-
-// Function to get users due for newsletter (implemented in JS since DB function may not be available)
-async function getUsersDueForNewsletter(currentUtcTime) {
-  try {
-    // Get all users with scheduling preferences
-    const users = await supabaseQuery(
-      'users', 
-      'select=id,email,preferred_send_time,timezone,last_newsletter_sent,send_frequency,weekend_delivery&preferred_send_time=not.is.null&timezone=not.is.null&email=not.is.null'
-    );
+    console.error(`Error sending newsletter to ${user.email}:`, error);
     
-    const currentDate = new Date(currentUtcTime);
-    const windowStart = new Date(currentDate.getTime());
-    windowStart.setSeconds(0, 0); // Round down to minute
-    const windowEnd = new Date(windowStart.getTime() + 5 * 60 * 1000); // Add 5 minutes
-    
-    const usersDue = [];
-    
-    for (const user of users) {
-      try {
-        // Calculate when this user's preferred time occurs in UTC
-        const [hours, minutes] = user.preferred_send_time.split(':').map(Number);
-        
-        // Create a date object for today at the user's preferred time in their timezone
-        const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD format
-        const userLocalTimeStr = `${today}T${user.preferred_send_time}`;
-        
-        // Convert to UTC
-        const userLocalTime = new Date(userLocalTimeStr);
-        const timezoneOffset = getTimezoneOffset(user.timezone, userLocalTime);
-        const userUtcTime = new Date(userLocalTime.getTime() - timezoneOffset);
-        
-        // Check if user's preferred UTC time falls within our 5-minute window
-        if (userUtcTime >= windowStart && userUtcTime < windowEnd) {
-          // Check frequency requirements
-          const lastSent = user.last_newsletter_sent ? new Date(user.last_newsletter_sent) : null;
-          const daysSinceLastSent = lastSent ? Math.floor((currentDate - lastSent) / (1000 * 60 * 60 * 24)) : 999;
-          
-          let shouldSend = false;
-          
-          switch (user.send_frequency) {
-            case 'daily':
-              shouldSend = !lastSent || daysSinceLastSent >= 1;
-              break;
-            case 'weekly':
-              shouldSend = !lastSent || daysSinceLastSent >= 7;
-              break;
-            case 'bi-weekly':
-              shouldSend = !lastSent || daysSinceLastSent >= 14;
-              break;
-            default:
-              shouldSend = !lastSent || daysSinceLastSent >= 1;
-          }
-          
-          // Check weekend delivery preference
-          const isWeekend = currentDate.getDay() === 0 || currentDate.getDay() === 6;
-          if (isWeekend && !user.weekend_delivery) {
-            shouldSend = false;
-          }
-          
-          if (shouldSend) {
-            usersDue.push({
-              user_id: user.id,
-              email: user.email,
-              preferred_send_time: user.preferred_send_time,
-              timezone: user.timezone,
-              local_send_time: userUtcTime.toISOString(),
-              last_newsletter_sent: user.last_newsletter_sent,
-              send_frequency: user.send_frequency
-            });
-          }
+    // Try to log the failure in queue
+    try {
+      await supabaseQuery('newsletter_queue', '', {
+        method: 'POST',
+        body: {
+          user_id: user.user_id,
+          scheduled_for: new Date().toISOString(),
+          status: 'failed',
+          content: content,
+          send_attempts: 1,
+          last_attempt_at: new Date().toISOString(),
+          error_message: error.message
         }
-      } catch (userError) {
-        console.error(`Error processing user ${user.email}:`, userError);
-        // Continue with other users
-      }
+      });
+    } catch (queueError) {
+      console.error('Failed to log queue error:', queueError);
     }
     
-    return usersDue;
-  } catch (error) {
-    console.error('Error getting users due for newsletter:', error);
     throw error;
-  }
-}
-
-// Helper function to get timezone offset (simplified)
-function getTimezoneOffset(timezone, date) {
-  try {
-    // This is a simplified approach - in production, you'd want a more robust timezone library
-    const utcDate = new Date(date.toLocaleString('en-US', { timeZone: 'UTC' }));
-    const localDate = new Date(date.toLocaleString('en-US', { timeZone: timezone }));
-    return localDate.getTime() - utcDate.getTime();
-  } catch (error) {
-    console.error('Error calculating timezone offset:', error);
-    return 0; // Default to UTC
   }
 }
 
@@ -238,85 +311,52 @@ export async function GET(request) {
     newsletters_queued: 0,
     newsletters_sent: 0,
     errors_count: 0,
-    details: { errors: [] }
+    details: { 
+      status: 'started',
+      start_time: new Date().toISOString(),
+      errors: [],
+      processed_users: []
+    }
   };
   
   try {
-    console.log('🕐 Checking for scheduled newsletters...');
+    console.log('🕐 Newsletter scheduling check started at', new Date().toISOString());
     
-    // Get current time for this check
-    const currentTime = new Date().toISOString();
+    // Get users due for newsletters
+    const usersDue = await getUsersDueForNewsletter();
     
-    // Get users due for newsletters (using direct implementation instead of DB function)
-    let usersDue;
-    try {
-      usersDue = await callSupabaseFunction('get_users_due_for_newsletter', {
-        current_utc_time: currentTime
-      });
-    } catch (dbFunctionError) {
-      console.log('⚠️ Database function not available, using fallback implementation');
-      usersDue = await getUsersDueForNewsletter(currentTime);
-    }
-    
-    logData.users_checked = usersDue.length;
+    // Count total users checked (from query)
+    const allUsers = await supabaseQuery('users', 'select=id&email=not.is.null&preferred_send_time=not.is.null&timezone=not.is.null');
+    logData.users_checked = allUsers.length;
+    logData.users_matched = usersDue.length;
     
     if (usersDue.length === 0) {
       console.log('✅ No users due for newsletters at this time');
       logData.details.message = 'No users due for newsletters';
+      logData.details.status = 'completed';
     } else {
       console.log(`📧 Found ${usersDue.length} users due for newsletters`);
-      logData.users_matched = usersDue.length;
       
       // Process each user
       for (const user of usersDue) {
         try {
-          console.log(`Processing user ${user.email} (${user.timezone}, ${user.preferred_send_time})`);
+          console.log(`🔄 Processing: ${user.email}`);
           
-          // Generate newsletter content
+          // Generate content
           const content = await generateNewsletterContent(user);
-          
-          // Queue the newsletter
-          const queueId = await callSupabaseFunction('queue_newsletter_for_user', {
-            p_user_id: user.user_id,
-            p_scheduled_for: currentTime,
-            p_content: content
-          });
-          
           logData.newsletters_queued++;
           
-          // Immediately try to send it (for real-time delivery)
-          try {
-            const newsletter = await sendNewsletter(user, content);
-            
-            // Mark as sent in the queue
-            await callSupabaseFunction('mark_newsletter_sent', {
-              p_queue_id: queueId,
-              p_newsletter_id: newsletter.id
-            });
-            
-            logData.newsletters_sent++;
-            console.log(`✅ Newsletter sent successfully to ${user.email}`);
-            
-          } catch (sendError) {
-            // Update queue with error
-            await supabaseQuery('newsletter_queue', `id=eq.${queueId}`, {
-              method: 'PATCH',
-              body: {
-                status: 'failed',
-                error_message: sendError.message,
-                send_attempts: 1,
-                last_attempt_at: currentTime
-              }
-            });
-            
-            logData.errors_count++;
-            logData.details.errors.push({
-              user_email: user.email,
-              error: sendError.message,
-              type: 'send_error'
-            });
-            console.error(`❌ Failed to send newsletter to ${user.email}:`, sendError.message);
-          }
+          // Create and send newsletter
+          const newsletter = await createAndSendNewsletter(user, content);
+          logData.newsletters_sent++;
+          
+          logData.details.processed_users.push({
+            email: user.email,
+            newsletter_id: newsletter.id,
+            status: 'sent'
+          });
+          
+          console.log(`✅ Successfully sent to ${user.email}`);
           
         } catch (userError) {
           logData.errors_count++;
@@ -325,27 +365,30 @@ export async function GET(request) {
             error: userError.message,
             type: 'processing_error'
           });
-          console.error(`❌ Error processing user ${user.email}:`, userError.message);
+          console.error(`❌ Failed for ${user.email}:`, userError.message);
         }
       }
+      
+      logData.details.status = 'completed';
     }
     
     // Calculate processing time
     logData.processing_time_ms = Date.now() - startTime;
+    logData.details.end_time = new Date().toISOString();
     
     // Log this run to the database
     await supabaseQuery('scheduling_logs', '', {
       method: 'POST',
       body: {
         ...logData,
-        details: JSON.stringify(logData.details)
+        details: logData.details
       }
     });
     
     // Return success response
     return Response.json({
       success: true,
-      timestamp: currentTime,
+      timestamp: new Date().toISOString(),
       summary: {
         users_checked: logData.users_checked,
         users_matched: logData.users_matched,
@@ -363,6 +406,7 @@ export async function GET(request) {
     
     logData.errors_count++;
     logData.processing_time_ms = Date.now() - startTime;
+    logData.details.status = 'failed';
     logData.details.errors.push({
       error: error.message,
       type: 'system_error'
@@ -374,7 +418,7 @@ export async function GET(request) {
         method: 'POST',
         body: {
           ...logData,
-          details: JSON.stringify(logData.details)
+          details: logData.details
         }
       });
     } catch (logError) {
