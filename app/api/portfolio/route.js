@@ -1,55 +1,52 @@
 export const dynamic = 'force-dynamic';
 
-const SHEETS = {
-  stocks: 'https://docs.google.com/spreadsheets/d/1mNJ51mIRjcaBKHJpyQKHr_DrMnKnaN8nK1kwRfcQw44/export?format=csv&gid=1179985516',
-  options: 'https://docs.google.com/spreadsheets/d/1mNJ51mIRjcaBKHJpyQKHr_DrMnKnaN8nK1kwRfcQw44/export?format=csv&gid=163011260'
-};
-
-function parseCSV(text) {
-  const lines = text.trim().split('\n');
-  const headers = lines[0].split(',').map(h => h.trim());
-  return lines.slice(1).map(line => {
-    const values = line.split(',');
-    const obj = {};
-    headers.forEach((h, i) => obj[h] = values[i]?.trim() || '');
-    return obj;
-  });
-}
+const SUPABASE_URL = "https://lsqlqssigerzghlxfxjl.supabase.co";
+const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxzcWxxc3NpZ2VyemdobHhmeGpsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk1NDA5NTEsImV4cCI6MjA4NTExNjk1MX0.jqoZUtW_gb8rehPteVgjmLLLlPRLYV-0fNJkpLGcf-s";
 
 export async function GET() {
   try {
-    const [stocksRes, optionsRes] = await Promise.all([
-      fetch(SHEETS.stocks, { cache: 'no-store' }),
-      fetch(SHEETS.options, { cache: 'no-store' })
+    // Fetch from Supabase
+    const [positionsRes, optionsRes] = await Promise.all([
+      fetch(`${SUPABASE_URL}/rest/v1/positions?select=*`, {
+        headers: { 'apikey': SUPABASE_ANON },
+        cache: 'no-store'
+      }),
+      fetch(`${SUPABASE_URL}/rest/v1/options?select=*&order=expiry.asc`, {
+        headers: { 'apikey': SUPABASE_ANON },
+        cache: 'no-store'
+      })
     ]);
 
-    const stocksCSV = await stocksRes.text();
-    const optionsCSV = await optionsRes.text();
+    const positions = await positionsRes.json();
+    const optionsData = await optionsRes.json();
 
-    const stocksRaw = parseCSV(stocksCSV);
-    const optionsRaw = parseCSV(optionsCSV);
+    // Handle errors
+    if (positions.error || optionsData.error) {
+      throw new Error(positions.error?.message || optionsData.error?.message || 'Failed to fetch');
+    }
 
-    // Process stocks
+    // Categorize positions
     const cash = [];
     const equities = [];
     const crypto = [];
 
-    stocksRaw.forEach(row => {
+    (positions || []).forEach(row => {
       const item = {
-        symbol: row.Symbol,
-        name: row.Name,
-        price: parseFloat(row.Price) || 0,
-        value: parseFloat(row['Market Value']) || 0,
-        pl: parseFloat(row['Total Profit/Loss']) || 0,
-        plPct: parseFloat(row['Total Profit/Loss (%)']) || 0,
-        units: parseFloat(row.Units) || 0,
-        cost: parseFloat(row['Average Purchase Price']) || 0,
-        type: row.Type
+        symbol: row.symbol,
+        name: row.name,
+        price: row.current_price || 0,
+        value: row.market_value || 0,
+        pl: row.profit_loss || 0,
+        plPct: row.profit_loss_pct || 0,
+        units: row.units || 0,
+        cost: row.cost_basis || 0,
+        type: row.type,
+        account: row.account
       };
 
-      if (row.Type === 'Open Ended Fund') {
+      if (row.type === 'cash' || row.type === 'fund') {
         cash.push(item);
-      } else if (row.Exchange === 'COIN') {
+      } else if (row.type === 'crypto') {
         crypto.push(item);
       } else {
         equities.push(item);
@@ -57,20 +54,21 @@ export async function GET() {
     });
 
     // Process options
-    const options = optionsRaw.map(row => ({
-      contract: row['Contract Symbol']?.trim(),
-      symbol: row.Symbol,
-      name: row.Name,
-      type: row['Option Type'],
-      strike: parseFloat(row['Strike Price']) || 0,
-      expiry: row['Expiration Date'],
-      price: parseFloat(row.Price) || 0,
-      qty: parseFloat(row.Units) || 0,
-      value: (parseFloat(row.Price) || 0) * (parseFloat(row.Units) || 0) * 100,
-      underlyingPrice: parseFloat(row.UnderPrc) || 0,
-      daysToExpiry: parseInt(row['Days till']) || 0,
-      status: row['in/out'],
-      notional: (parseFloat(row.Units) || 0) * (parseFloat(row.UnderPrc) || 0) * 100
+    const options = (optionsData || []).map(row => ({
+      contract: row.contract_symbol,
+      symbol: row.underlying,
+      name: row.name,
+      type: row.option_type,
+      strike: row.strike || 0,
+      expiry: row.expiry,
+      price: row.price || 0,
+      qty: row.qty || 0,
+      value: row.market_value || 0,
+      underlyingPrice: row.underlying_price || 0,
+      daysToExpiry: row.days_to_expiry || 0,
+      status: row.status,
+      notional: row.notional || 0,
+      account: row.account
     }));
 
     // Calculate totals
@@ -81,6 +79,7 @@ export async function GET() {
 
     return Response.json({
       lastUpdated: new Date().toISOString(),
+      source: 'supabase',
       summary: {
         cash: cashTotal,
         equities: equitiesTotal,
@@ -94,6 +93,7 @@ export async function GET() {
       options
     });
   } catch (error) {
+    console.error('Portfolio API error:', error);
     return Response.json({ error: error.message }, { status: 500 });
   }
 }
