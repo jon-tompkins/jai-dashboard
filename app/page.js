@@ -656,7 +656,8 @@ export default function Dashboard() {
   const [reviewsSummary, setReviewsSummary] = useState({});
   const [selectedReview, setSelectedReview] = useState(null);
   const [reviewsLoading, setReviewsLoading] = useState(false);
-  const [positions, setPositions] = useState([]);
+  const [allPositions, setAllPositions] = useState({ positions: [], trades: [] });
+  const [positionsLoading, setPositionsLoading] = useState(false);
   const [tradeListView, setTradeListView] = useState(false);
   const [expandedTrades, setExpandedTrades] = useState({});
   const [showAddTrade, setShowAddTrade] = useState(false);
@@ -669,7 +670,7 @@ export default function Dashboard() {
   useEffect(() => { if (tab === 'tasks') fetchKanban(); }, [tab]);
   useEffect(() => { if (tab === 'settings') fetchUserSchedule(); }, [tab]);
   useEffect(() => { if (tab === 'reviews') fetchReviews(); }, [tab]);
-  useEffect(() => { if (tab === 'positions') fetchPositions(); }, [tab]);
+  useEffect(() => { if (tab === 'positions') fetchAllPositions(); }, [tab]);
 
   function toggleChart(key) {
     setChartToggles(prev => ({ ...prev, [key]: !prev[key] }));
@@ -760,36 +761,28 @@ export default function Dashboard() {
     } catch (e) { console.error(e); }
   }
 
-  async function fetchPositions() {
-    setLoading(true);
+  async function fetchAllPositions() {
+    setPositionsLoading(true);
     try {
       const res = await fetch('/api/positions');
       const data = await res.json();
-      setPositions(data.positions || []);
-      if (data.trades) {
-        setTrades(data.trades);
-      }
+      setAllPositions(data);
     } catch (e) { console.error(e); }
-    setLoading(false);
+    setPositionsLoading(false);
   }
 
-  async function updatePositionTrade(id, type, tradeId) {
+  async function updatePositionTrade(id, table, tradeId) {
     try {
-      const payload = { 
-        id, 
-        type, 
-        trade_id: tradeId === 'null' ? null : tradeId 
-      };
-      
       const res = await fetch('/api/positions', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({ id, table, tradeId })
       });
       
       if (res.ok) {
-        fetchPositions();
+        fetchAllPositions();
         fetchTrades();
+        fetchPortfolio();
       } else {
         console.error('Failed to update position trade');
       }
@@ -1285,7 +1278,7 @@ export default function Dashboard() {
       {tab === 'positions' && (
         <>
           <div style={{ marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'center' }}>
-            <button style={styles.btn} onClick={fetchPositions} disabled={loading}>
+            <button style={styles.btn} onClick={fetchAllPositions} disabled={positionsLoading}>
               {positionsLoading ? '⏳ Loading...' : '🔄 Refresh'}
             </button>
             <span style={{ color: '#8b949e', fontSize: '12px' }}>
@@ -1297,7 +1290,7 @@ export default function Dashboard() {
             <div style={styles.cardTitle}>
               <span>📊 All Positions</span>
               <span style={{ fontSize: '16px', fontWeight: '600' }}>
-                {positions.length} positions
+                {allPositions.positions?.length || 0} positions
               </span>
             </div>
             <div className="table-responsive">
@@ -1306,7 +1299,7 @@ export default function Dashboard() {
                   <tr>
                     <th style={styles.th}>Symbol</th>
                     <th style={styles.th}>Type</th>
-                    <th style={styles.thRight}>Qty/Contracts</th>
+                    <th style={styles.thRight}>Qty</th>
                     <th style={styles.thRight}>Price</th>
                     <th style={styles.thRight}>Value</th>
                     <th style={styles.thRight}>P&L</th>
@@ -1314,13 +1307,13 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {positions.map((pos, i) => (
-                    <tr key={i}>
+                  {(allPositions.positions || []).map((pos, i) => (
+                    <tr key={`${pos.table}-${pos.id}`}>
                       <td style={styles.td}>
                         <strong>{pos.symbol}</strong>
                         {pos.type === 'option' && (
                           <div style={{ fontSize: '11px', color: '#8b949e' }}>
-                            {pos.option_type} ${pos.strike} {pos.expiry}
+                            {pos.optionType?.toUpperCase()} ${pos.strike} exp {pos.expiry}
                           </div>
                         )}
                       </td>
@@ -1332,11 +1325,11 @@ export default function Dashboard() {
                                      pos.type === 'cash' ? '#8b949e' :
                                      pos.type === 'option' ? '#d29922' : '#a371f7'
                         }}>
-                          {pos.type.toUpperCase()}
+                          {pos.type?.toUpperCase()}
                         </span>
                       </td>
                       <td style={styles.tdRight}>
-                        {pos.type === 'option' ? `${pos.contracts} contracts` : `${pos.qty}`}
+                        {pos.quantity}
                       </td>
                       <td style={styles.tdRight}>${pos.price?.toFixed(2)}</td>
                       <td style={styles.tdRight}>{formatMoney(pos.value)}</td>
@@ -1345,8 +1338,8 @@ export default function Dashboard() {
                       </td>
                       <td style={styles.td}>
                         <select
-                          value={pos.trade_id || 'null'}
-                          onChange={(e) => updatePositionTrade(pos.id, pos.type, e.target.value)}
+                          value={pos.tradeId || ''}
+                          onChange={(e) => updatePositionTrade(pos.id, pos.table, e.target.value || null)}
                           style={{
                             padding: '4px 8px',
                             background: '#161b22',
@@ -1357,8 +1350,8 @@ export default function Dashboard() {
                             minWidth: '120px'
                           }}
                         >
-                          <option value="null">No Trade</option>
-                          {trades.map(trade => (
+                          <option value="">No Trade</option>
+                          {(allPositions.trades || []).map(trade => (
                             <option key={trade.id} value={trade.id}>
                               {trade.name}
                             </option>
@@ -1377,7 +1370,7 @@ export default function Dashboard() {
       {tab === 'trades' && (
         <>
           <div style={{ marginBottom: '16px', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-            <button style={styles.btn} onClick={() => { fetchTrades(); fetchPortfolio(); fetchPositions(); }}>🔄 Refresh</button>
+            <button style={styles.btn} onClick={() => { fetchTrades(); fetchPortfolio(); fetchAllPositions(); }}>🔄 Refresh</button>
             <button 
               style={{...styles.btn, background: tradeListView ? '#238636' : '#21262d'}} 
               onClick={() => setTradeListView(!tradeListView)}
