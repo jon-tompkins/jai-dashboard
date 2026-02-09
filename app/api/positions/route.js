@@ -43,21 +43,21 @@ export async function GET() {
     (positions || []).forEach(pos => {
       allPositions.push({
         id: pos.id,
+        table: 'positions',
         symbol: pos.symbol,
         name: pos.name,
         type: pos.type === 'cash' || pos.type === 'fund' ? 'cash' : 
               pos.type === 'crypto' ? 'crypto' : 'equity',
-        qty: pos.units || 0,
-        contracts: null,
+        quantity: pos.units || 0,
         price: pos.current_price || 0,
         value: pos.market_value || 0,
         pl: pos.profit_loss || 0,
         plPct: pos.profit_loss_pct || 0,
-        trade_id: pos.trade_id || null,
+        tradeId: pos.trade_id || null,
         trade: pos.trade_id ? tradeLookup[pos.trade_id] : null,
         account: pos.account,
-        cost_basis: pos.cost_basis || 0,
-        underlying: pos.symbol // For equity, underlying is itself
+        costBasis: pos.cost_basis || 0,
+        underlying: pos.symbol
       });
     });
 
@@ -65,24 +65,24 @@ export async function GET() {
     (options || []).forEach(opt => {
       allPositions.push({
         id: opt.id,
+        table: 'options',
         symbol: opt.contract_symbol,
         name: `${opt.underlying} ${opt.option_type} ${opt.strike} ${opt.expiry}`,
         type: 'option',
-        qty: null,
-        contracts: opt.qty || 0,
+        quantity: opt.qty || 0,
         price: opt.price || 0,
         value: opt.market_value || 0,
-        pl: (opt.market_value || 0) - ((opt.qty || 0) * (opt.cost_basis || 0) * 100), // Rough P/L calc
-        plPct: 0, // Options P/L % is complex, skip for now
-        trade_id: opt.trade_id || null,
+        pl: (opt.market_value || 0) - ((opt.qty || 0) * (opt.cost_basis || 0) * 100),
+        plPct: 0,
+        tradeId: opt.trade_id || null,
         trade: opt.trade_id ? tradeLookup[opt.trade_id] : null,
         account: opt.account,
-        cost_basis: opt.cost_basis || 0,
+        costBasis: opt.cost_basis || 0,
         underlying: opt.underlying,
-        option_type: opt.option_type,
+        optionType: opt.option_type,
         strike: opt.strike,
         expiry: opt.expiry,
-        days_to_expiry: opt.days_to_expiry
+        daysToExpiry: opt.days_to_expiry
       });
     });
 
@@ -101,14 +101,13 @@ export async function GET() {
 
 export async function PATCH(request) {
   try {
-    const { id, trade_id, type } = await request.json();
+    const { id, table, tradeId } = await request.json();
     
-    if (!id || typeof trade_id === 'undefined') {
-      return Response.json({ error: 'Missing id or trade_id' }, { status: 400 });
+    if (!id || !table) {
+      return Response.json({ error: 'Missing id or table' }, { status: 400 });
     }
 
-    // Update the appropriate table based on type
-    const tableName = type === 'option' ? 'options' : 'positions';
+    const tableName = table === 'options' ? 'options' : 'positions';
     
     const response = await fetch(`${SUPABASE_URL}/rest/v1/${tableName}?id=eq.${id}`, {
       method: 'PATCH',
@@ -117,7 +116,7 @@ export async function PATCH(request) {
         'Content-Type': 'application/json',
         'Prefer': 'return=minimal'
       },
-      body: JSON.stringify({ trade_id: trade_id === 'null' ? null : trade_id })
+      body: JSON.stringify({ trade_id: tradeId || null })
     });
 
     if (!response.ok) {
