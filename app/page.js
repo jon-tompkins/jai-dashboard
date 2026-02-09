@@ -132,13 +132,33 @@ function formatMoney(n, isPublic = false) {
 function formatPct(n) { return (n >= 0 ? '+' : '') + (n * 100).toFixed(1) + '%'; }
 function renderMarkdown(text) {
   if (!text) return '';
-  return text
+  
+  // First, handle tables
+  let result = text.replace(/(?:^|\n)((?:\|[^\n]+\|\n)+)/g, (match, tableBlock) => {
+    const lines = tableBlock.trim().split('\n').filter(l => l.trim());
+    if (lines.length < 2) return match;
+    
+    const parseRow = (line) => line.split('|').slice(1, -1).map(c => c.trim());
+    const headers = parseRow(lines[0]);
+    const isSeparator = (line) => /^\|[\s\-:|]+\|$/.test(line);
+    const dataStartIdx = isSeparator(lines[1]) ? 2 : 1;
+    const dataRows = lines.slice(dataStartIdx).map(parseRow);
+    
+    const tableStyle = 'width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px;';
+    const thStyle = 'padding: 8px; border: 1px solid #30363d; background: #161b22; text-align: left; color: #8b949e;';
+    const tdStyle = 'padding: 8px; border: 1px solid #30363d;';
+    
+    return `<table style="${tableStyle}"><thead><tr>${headers.map(h => `<th style="${thStyle}">${h}</th>`).join('')}</tr></thead><tbody>${dataRows.map(row => `<tr>${row.map(c => `<td style="${tdStyle}">${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  });
+  
+  return result
     .replace(/^### (.+)$/gm, '<h4 style="color: #58a6ff; margin: 16px 0 8px;">$1</h4>')
     .replace(/^## (.+)$/gm, '<h3 style="color: #e6edf3; margin: 20px 0 10px; border-bottom: 1px solid #30363d; padding-bottom: 6px;">$1</h3>')
     .replace(/^# (.+)$/gm, '<h2 style="font-size: 20px; margin: 0 0 16px;">$1</h2>')
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.+?)\*/g, '<em>$1</em>')
     .replace(/^- (.+)$/gm, '<li style="margin: 4px 0; margin-left: 20px;">$1</li>')
+    .replace(/^(\d+)\. (.+)$/gm, '<li style="margin: 4px 0; margin-left: 20px;">$2</li>')
     .replace(/\n\n/g, '<br><br>');
 }
 
@@ -1823,28 +1843,47 @@ export default function Dashboard() {
         ].sort((a, b) => new Date(b._date) - new Date(a._date));
         const selectedReport = selected || selectedNewsletter;
         
+        // Filter by search
+        const searchLower = (window.reportsSearch || '').toLowerCase();
+        const filteredReports = searchLower ? allReports.filter(r => 
+          r._title?.toLowerCase().includes(searchLower) ||
+          r.ticker?.toLowerCase().includes(searchLower) ||
+          r.referenced_assets?.some(a => a.toLowerCase().includes(searchLower)) ||
+          r.content?.toLowerCase().includes(searchLower)
+        ) : allReports;
+        
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {/* Mobile: Collapsible file picker */}
+            {/* Mobile: Collapsible file picker with search */}
             <div style={styles.card} className="reports-picker">
               <div 
                 style={{...styles.cardTitle, cursor: 'pointer', marginBottom: reportsListOpen ? '12px' : 0 }} 
                 onClick={() => setReportsListOpen(!reportsListOpen)}
                 className="collapsible-header"
               >
-                <span>📊 Reports ({allReports.length}) {selectedReport && !reportsListOpen ? `• ${selectedReport._title}` : ''}</span>
-                <span style={{ fontSize: '12px', color: '#8b949e' }}>{reportsListOpen ? '▼ collapse' : '▶ select'}</span>
+                <span>📊 Reports ({filteredReports.length}{searchLower ? `/${allReports.length}` : ''}) {selectedReport && !reportsListOpen ? `• ${selectedReport._title}` : ''}</span>
+                <span style={{ fontSize: '12px', color: '#8b949e' }}>{reportsListOpen ? '▼ collapse' : '▶ expand'}</span>
               </div>
+              {reportsListOpen && (
+                <input
+                  type="text"
+                  placeholder="🔍 Search reports..."
+                  defaultValue={window.reportsSearch || ''}
+                  onChange={(e) => { window.reportsSearch = e.target.value; }}
+                  onKeyUp={(e) => { if (e.key === 'Enter') { window.reportsSearch = e.target.value; e.target.blur(); e.target.focus(); } }}
+                  style={{ width: '100%', padding: '8px 12px', background: '#0d1117', border: '1px solid #30363d', borderRadius: '4px', color: '#e6edf3', marginBottom: '12px', fontSize: '14px' }}
+                />
+              )}
               <div style={{ maxHeight: reportsListOpen ? '40vh' : 0, overflow: 'hidden', overflowY: reportsListOpen ? 'auto' : 'hidden', transition: 'max-height 0.2s ease' }}>
-                {allReports.length === 0 ? (
-                  <p style={{ color: '#8b949e' }}>No reports yet</p>
+                {filteredReports.length === 0 ? (
+                  <p style={{ color: '#8b949e' }}>{searchLower ? 'No matching reports' : 'No reports yet'}</p>
                 ) : (
-                  allReports.map(r => {
+                  filteredReports.map(r => {
                     const isSelected = selectedReport?.id === r.id;
                     const typeColor = r._type === 'newsletter' ? '#1d9bf0' : r.type === 'sector' ? '#d29922' : '#238636';
                     const typeLabel = r._type === 'newsletter' ? (r.type || 'newsletter') : r.type;
                     return (
-                      <div key={r.id} style={{...styles.researchItem, borderColor: isSelected ? '#58a6ff' : '#30363d'}} onClick={() => { r._type === 'newsletter' ? setSelectedNewsletter(r) : setSelected(r); r._type === 'newsletter' ? setSelected(null) : setSelectedNewsletter(null); setReportsListOpen(false); }}>
+                      <div key={r.id} style={{...styles.researchItem, borderColor: isSelected ? '#58a6ff' : '#30363d'}} onClick={() => { r._type === 'newsletter' ? setSelectedNewsletter(r) : setSelected(r); r._type === 'newsletter' ? setSelected(null) : setSelectedNewsletter(null); }}>
                         <div style={{ fontWeight: 500 }}>{r._title}</div>
                         <div style={{ fontSize: '12px', color: '#8b949e', marginTop: '4px' }}>
                           <span style={{...styles.tag, background: typeColor}}>{typeLabel}</span>
