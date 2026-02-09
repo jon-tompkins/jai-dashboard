@@ -658,8 +658,10 @@ export default function Dashboard() {
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [allPositions, setAllPositions] = useState({ positions: [], trades: [] });
   const [positionsLoading, setPositionsLoading] = useState(false);
-  const [tradeListView, setTradeListView] = useState(false);
+  const [positionsSort, setPositionsSort] = useState({ field: 'value', dir: 'desc' });
+  const [tradeListView, setTradeListView] = useState(true);
   const [expandedTrades, setExpandedTrades] = useState({});
+  const [expandedUnderlyings, setExpandedUnderlyings] = useState({});
   const [showAddTrade, setShowAddTrade] = useState(false);
   const [newTradeForm, setNewTradeForm] = useState({ name: '', thesis: '', direction: 'long', timeframe: 'medium', conviction: 3, status: 'active' });
 
@@ -1294,72 +1296,78 @@ export default function Dashboard() {
               </span>
             </div>
             <div className="table-responsive">
-              <table style={styles.table}>
+              <table style={{...styles.table, fontSize: '12px'}}>
                 <thead>
                   <tr>
-                    <th style={styles.th}>Symbol</th>
-                    <th style={styles.th}>Type</th>
-                    <th style={styles.thRight}>Qty</th>
-                    <th style={styles.thRight}>Price</th>
-                    <th style={styles.thRight}>Value</th>
-                    <th style={styles.thRight}>P&L</th>
-                    <th style={styles.th}>Trade</th>
+                    <th style={{...styles.th, cursor: 'pointer', padding: '6px 4px'}} onClick={() => setPositionsSort(s => ({ field: 'symbol', dir: s.field === 'symbol' && s.dir === 'asc' ? 'desc' : 'asc' }))}>
+                      Symbol {positionsSort.field === 'symbol' && (positionsSort.dir === 'asc' ? '▲' : '▼')}
+                    </th>
+                    <th style={{...styles.th, padding: '6px 4px'}}>Type</th>
+                    <th style={{...styles.thRight, padding: '6px 4px'}}>Qty</th>
+                    <th style={{...styles.thRight, cursor: 'pointer', padding: '6px 4px'}} onClick={() => setPositionsSort(s => ({ field: 'value', dir: s.field === 'value' && s.dir === 'desc' ? 'asc' : 'desc' }))}>
+                      Value {positionsSort.field === 'value' && (positionsSort.dir === 'asc' ? '▲' : '▼')}
+                    </th>
+                    <th style={{...styles.th, padding: '6px 4px'}}>Trade</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {(allPositions.positions || []).map((pos, i) => (
-                    <tr key={`${pos.table}-${pos.id}`}>
-                      <td style={styles.td}>
-                        <strong>{pos.symbol}</strong>
-                        {pos.type === 'option' && (
-                          <div style={{ fontSize: '11px', color: '#8b949e' }}>
-                            {pos.optionType?.toUpperCase()} ${pos.strike} exp {pos.expiry}
-                          </div>
-                        )}
-                      </td>
-                      <td style={styles.td}>
-                        <span style={{
-                          ...styles.tag, 
-                          background: pos.type === 'equity' ? '#238636' :
-                                     pos.type === 'crypto' ? '#8957e5' :
-                                     pos.type === 'cash' ? '#8b949e' :
-                                     pos.type === 'option' ? '#d29922' : '#a371f7'
-                        }}>
-                          {pos.type?.toUpperCase()}
-                        </span>
-                      </td>
-                      <td style={styles.tdRight}>
-                        {pos.quantity}
-                      </td>
-                      <td style={styles.tdRight}>${pos.price?.toFixed(2)}</td>
-                      <td style={styles.tdRight}>{formatMoney(pos.value)}</td>
-                      <td style={{...styles.tdRight, ...(pos.pl >= 0 ? styles.green : styles.red)}}>
-                        {formatMoney(pos.pl)} ({formatPct(pos.plPct || 0)})
-                      </td>
-                      <td style={styles.td}>
-                        <select
-                          value={pos.tradeId || ''}
-                          onChange={(e) => updatePositionTrade(pos.id, pos.table, e.target.value || null)}
-                          style={{
-                            padding: '4px 8px',
-                            background: '#161b22',
-                            border: '1px solid #30363d',
-                            borderRadius: '4px',
-                            color: '#e6edf3',
-                            fontSize: '12px',
-                            minWidth: '120px'
-                          }}
-                        >
-                          <option value="">No Trade</option>
-                          {(allPositions.trades || []).map(trade => (
-                            <option key={trade.id} value={trade.id}>
-                              {trade.name}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                    </tr>
-                  ))}
+                  {(allPositions.positions || [])
+                    .slice()
+                    .sort((a, b) => {
+                      if (positionsSort.field === 'symbol') {
+                        return positionsSort.dir === 'asc' ? a.symbol.localeCompare(b.symbol) : b.symbol.localeCompare(a.symbol);
+                      }
+                      return positionsSort.dir === 'asc' ? (a.value || 0) - (b.value || 0) : (b.value || 0) - (a.value || 0);
+                    })
+                    .map((pos) => {
+                      const tradeName = (allPositions.trades || []).find(t => t.id === pos.tradeId)?.name;
+                      return (
+                        <tr key={`${pos.table}-${pos.id}`}>
+                          <td style={{...styles.td, padding: '4px'}}>
+                            <strong>{pos.symbol}</strong>
+                            {pos.type === 'option' && (
+                              <span style={{ fontSize: '10px', color: '#8b949e', marginLeft: '4px' }}>
+                                {pos.optionType?.toUpperCase()} ${pos.strike}
+                              </span>
+                            )}
+                          </td>
+                          <td style={{...styles.td, padding: '4px'}}>
+                            <span style={{
+                              ...styles.tag, 
+                              fontSize: '10px',
+                              padding: '1px 6px',
+                              background: pos.type === 'equity' ? '#238636' :
+                                         pos.type === 'crypto' ? '#8957e5' :
+                                         pos.type === 'option' ? '#d29922' : '#8b949e'
+                            }}>
+                              {pos.type?.toUpperCase()}
+                            </span>
+                          </td>
+                          <td style={{...styles.tdRight, padding: '4px'}}>{pos.quantity}</td>
+                          <td style={{...styles.tdRight, padding: '4px'}}>{formatMoney(pos.value)}</td>
+                          <td style={{...styles.td, padding: '4px'}}>
+                            <select
+                              value={pos.tradeId || ''}
+                              onChange={(e) => updatePositionTrade(pos.id, pos.table, e.target.value || null)}
+                              style={{
+                                padding: '2px 4px',
+                                background: '#161b22',
+                                border: '1px solid #30363d',
+                                borderRadius: '4px',
+                                color: tradeName ? '#e6edf3' : '#8b949e',
+                                fontSize: '11px',
+                                minWidth: '100px'
+                              }}
+                            >
+                              <option value="">No Trade</option>
+                              {(allPositions.trades || []).map(trade => (
+                                <option key={trade.id} value={trade.id}>{trade.name}</option>
+                              ))}
+                            </select>
+                          </td>
+                        </tr>
+                      );
+                    })}
                 </tbody>
               </table>
             </div>
@@ -1492,102 +1500,113 @@ export default function Dashboard() {
                 // Group all positions by trade, then by underlying
                 const groupedByTrade = {};
                 
-                // Add trades with their positions
-                tradeValues.forEach(trade => {
-                  if (!groupedByTrade[trade.id]) {
-                    groupedByTrade[trade.id] = {
+                // Add trades with their positions from allPositions (which has trade_id)
+                (allPositions.positions || []).forEach(p => {
+                  const tradeId = p.tradeId || 'no-trade';
+                  const trade = trades.find(t => t.id === tradeId) || { id: 'no-trade', name: 'No Trade', color: '#8b949e' };
+                  
+                  if (!groupedByTrade[tradeId]) {
+                    groupedByTrade[tradeId] = {
                       ...trade,
                       underlyings: {}
                     };
                   }
-                  trade.values.positions.forEach(p => {
-                    const underlying = p.underlying || p.symbol;
-                    if (!groupedByTrade[trade.id].underlyings[underlying]) {
-                      groupedByTrade[trade.id].underlyings[underlying] = [];
-                    }
-                    groupedByTrade[trade.id].underlyings[underlying].push(p);
-                  });
+                  
+                  const underlying = p.underlying || p.symbol;
+                  if (!groupedByTrade[tradeId].underlyings[underlying]) {
+                    groupedByTrade[tradeId].underlyings[underlying] = [];
+                  }
+                  groupedByTrade[tradeId].underlyings[underlying].push(p);
                 });
 
-                // Add "No Trade" group from allPositions
-                const noTradePositions = (allPositions.positions || []).filter(p => !p.tradeId);
-                if (noTradePositions.length > 0) {
-                  groupedByTrade['no-trade'] = {
-                    id: 'no-trade',
-                    name: 'No Trade',
-                    color: '#8b949e',
-                    values: {
-                      total: noTradePositions.reduce((s, p) => s + (p.value || 0), 0),
-                      equity: noTradePositions.filter(p => p.type === 'equity').reduce((s, p) => s + (p.value || 0), 0),
-                      options: noTradePositions.filter(p => p.type === 'option').reduce((s, p) => s + (p.value || 0), 0),
-                    },
-                    underlyings: {}
-                  };
-                  noTradePositions.forEach(p => {
-                    const underlying = p.underlying || p.symbol;
-                    if (!groupedByTrade['no-trade'].underlyings[underlying]) {
-                      groupedByTrade['no-trade'].underlyings[underlying] = [];
-                    }
-                    groupedByTrade['no-trade'].underlyings[underlying].push(p);
-                  });
-                }
+                // Sort trades by total value, with No Trade last
+                const sortedTrades = Object.values(groupedByTrade).sort((a, b) => {
+                  if (a.id === 'no-trade') return 1;
+                  if (b.id === 'no-trade') return -1;
+                  const aTotal = Object.values(a.underlyings).flat().reduce((s, p) => s + (p.value || 0), 0);
+                  const bTotal = Object.values(b.underlyings).flat().reduce((s, p) => s + (p.value || 0), 0);
+                  return bTotal - aTotal;
+                });
 
-                return Object.values(groupedByTrade).filter(t => t.values?.total > 0 || Object.keys(t.underlyings).length > 0).map(trade => {
-                  const eqVal = trade.values?.equity || 0;
-                  const optVal = trade.values?.options || 0;
-                  const totalVal = trade.values?.total || (eqVal + optVal);
+                return sortedTrades.map(trade => {
+                  const allTradePositions = Object.values(trade.underlyings).flat();
+                  const totalVal = allTradePositions.reduce((s, p) => s + (p.value || 0), 0);
+                  const eqVal = allTradePositions.filter(p => p.type === 'equity' || p.type === 'crypto').reduce((s, p) => s + (p.value || 0), 0);
+                  const optVal = allTradePositions.filter(p => p.type === 'option').reduce((s, p) => s + (p.value || 0), 0);
                   const eqPct = totalVal > 0 ? Math.round(eqVal / totalVal * 100) : 0;
                   const isExpanded = expandedTrades[trade.id];
 
+                  if (totalVal === 0) return null;
+
                   return (
-                    <div key={trade.id} style={{ borderBottom: '1px solid #30363d', padding: '12px 0' }}>
+                    <div key={trade.id} style={{ borderBottom: '1px solid #30363d', padding: '8px 0' }}>
                       <div 
-                        onClick={() => toggleTradeExpanded(trade.id)}
-                        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+                        onClick={() => setExpandedTrades(prev => ({ ...prev, [trade.id]: !prev[trade.id] }))}
+                        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', padding: '4px 0' }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <span style={{ color: '#8b949e' }}>{isExpanded ? '▼' : '▶'}</span>
-                          <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '2px', background: trade.color }} />
-                          <strong>{trade.name}</strong>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ color: '#8b949e', fontSize: '12px' }}>{isExpanded ? '▼' : '▶'}</span>
+                          <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '2px', background: trade.color }} />
+                          <strong style={{ fontSize: '14px' }}>{trade.name}</strong>
+                          <span style={{ color: '#8b949e', fontSize: '12px' }}>({Object.keys(trade.underlyings).length})</span>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                          <span style={{ fontWeight: '600' }}>{formatMoney(totalVal)}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <span style={{ fontWeight: '600', fontSize: '14px' }}>{formatMoney(totalVal)}</span>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <div style={{ width: '60px', height: '8px', background: '#21262d', borderRadius: '4px', overflow: 'hidden', display: 'flex' }}>
+                            <div style={{ width: '50px', height: '6px', background: '#21262d', borderRadius: '3px', overflow: 'hidden', display: 'flex' }}>
                               <div style={{ width: `${eqPct}%`, background: '#3fb950' }} />
                               <div style={{ width: `${100-eqPct}%`, background: '#d29922' }} />
                             </div>
-                            <span style={{ fontSize: '11px', color: '#8b949e', width: '45px' }}>{eqPct}/{100-eqPct}</span>
+                            <span style={{ fontSize: '10px', color: '#8b949e', width: '40px' }}>{eqPct}/{100-eqPct}</span>
                           </div>
                         </div>
                       </div>
                       
                       {isExpanded && (
-                        <div style={{ marginTop: '12px', marginLeft: '32px' }}>
+                        <div style={{ marginTop: '8px', marginLeft: '24px' }}>
                           {Object.entries(trade.underlyings).sort((a, b) => {
                             const aTotal = a[1].reduce((s, p) => s + (p.value || 0), 0);
                             const bTotal = b[1].reduce((s, p) => s + (p.value || 0), 0);
                             return bTotal - aTotal;
                           }).map(([underlying, positions]) => {
                             const underlyingTotal = positions.reduce((s, p) => s + (p.value || 0), 0);
-                            const hasEquity = positions.some(p => p.type === 'equity' || p.type === 'crypto');
-                            const hasOptions = positions.some(p => p.type === 'option');
+                            const eqPositions = positions.filter(p => p.type === 'equity' || p.type === 'crypto');
+                            const optPositions = positions.filter(p => p.type === 'option');
+                            const eqTotal = eqPositions.reduce((s, p) => s + (p.value || 0), 0);
+                            const optTotal = optPositions.reduce((s, p) => s + (p.value || 0), 0);
+                            const underlyingKey = `${trade.id}-${underlying}`;
+                            const isUnderlyingExpanded = expandedUnderlyings[underlyingKey];
                             
                             return (
-                              <div key={underlying} style={{ padding: '8px', margin: '4px 0', background: '#0d1117', borderRadius: '4px' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                                  <strong>{underlying}</strong>
-                                  <span>{formatMoney(underlyingTotal)}</span>
-                                </div>
-                                {positions.map((p, i) => (
-                                  <div key={i} style={{ fontSize: '12px', color: '#8b949e', display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
-                                    <span>
-                                      <span style={{...styles.tag, background: p.type === 'option' ? '#d29922' : p.type === 'crypto' ? '#8957e5' : '#238636', fontSize: '10px'}}>{p.type}</span>
-                                      {p.type === 'option' ? `${p.optionType || ''} $${p.strike} ${p.expiry || ''}` : `${p.quantity || p.units} shares`}
-                                    </span>
-                                    <span>{formatMoney(p.value)}</span>
+                              <div key={underlying} style={{ padding: '6px 8px', margin: '2px 0', background: '#0d1117', borderRadius: '4px' }}>
+                                <div 
+                                  onClick={() => setExpandedUnderlyings(prev => ({ ...prev, [underlyingKey]: !prev[underlyingKey] }))}
+                                  style={{ display: 'flex', justifyContent: 'space-between', cursor: 'pointer', alignItems: 'center' }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <span style={{ color: '#8b949e', fontSize: '11px' }}>{isUnderlyingExpanded ? '▼' : '▶'}</span>
+                                    <strong style={{ fontSize: '13px' }}>{underlying}</strong>
                                   </div>
-                                ))}
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12px' }}>
+                                    {eqTotal > 0 && <span style={{ color: '#3fb950' }}>EQ: {formatMoney(eqTotal)}</span>}
+                                    {optTotal > 0 && <span style={{ color: '#d29922' }}>OPT: {formatMoney(optTotal)}</span>}
+                                    <span style={{ fontWeight: '500' }}>{formatMoney(underlyingTotal)}</span>
+                                  </div>
+                                </div>
+                                
+                                {isUnderlyingExpanded && (
+                                  <div style={{ marginTop: '6px', marginLeft: '16px' }}>
+                                    {positions.map((p, i) => (
+                                      <div key={i} style={{ fontSize: '11px', color: '#8b949e', display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
+                                        <span>
+                                          <span style={{...styles.tag, background: p.type === 'option' ? '#d29922' : p.type === 'crypto' ? '#8957e5' : '#238636', fontSize: '9px', padding: '1px 4px'}}>{p.type}</span>
+                                          {p.type === 'option' ? ` ${p.optionType?.toUpperCase() || ''} $${p.strike} ${p.expiry || ''}` : ` ${p.quantity} shares @ $${p.price?.toFixed(2)}`}
+                                        </span>
+                                        <span>{formatMoney(p.value)}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                             );
                           })}
