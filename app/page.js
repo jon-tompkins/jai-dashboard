@@ -172,8 +172,10 @@ function ConvictionDots({ level }) {
   );
 }
 
-function HoldingsRow({ holding, s, publicScreenshot, formatMoney, formatPct }) {
+function HoldingsRow({ holding, s, publicScreenshot, formatMoney, formatPct, liveQuotes }) {
   const [expanded, setExpanded] = useState(false);
+  const quote = liveQuotes?.[holding.symbol] || {};
+  const dayChange = quote.changePercent;
   
   return (
     <React.Fragment>
@@ -190,9 +192,11 @@ function HoldingsRow({ holding, s, publicScreenshot, formatMoney, formatPct }) {
             holding.type === 'OPTIONS' ? '#d29922' : '#a371f7'
           }}>{holding.type}</span>
         </td>
-        <td style={styles.tdRight}>${holding.price?.toFixed(2)}</td>
+        <td style={styles.tdRight}>{quote.price ? `$${quote.price.toFixed(2)}` : `$${holding.price?.toFixed(2)}`}</td>
+        <td style={{...styles.tdRight, color: dayChange > 0 ? '#3fb950' : dayChange < 0 ? '#f85149' : '#8b949e'}}>
+          {dayChange !== undefined ? `${dayChange >= 0 ? '+' : ''}${dayChange.toFixed(2)}%` : '—'}
+        </td>
         <td style={styles.tdRight}>{formatMoney(holding.value)}</td>
-        <td style={styles.tdRight}>{formatMoney(holding.notional)}</td>
         <td style={{...styles.tdRight, ...(holding.pl >= 0 ? styles.green : styles.red)}}>
           {formatMoney(holding.pl)} ({formatPct(holding.plPct)})
         </td>
@@ -626,6 +630,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(false);
   const [priceRefreshing, setPriceRefreshing] = useState(false);
   const [lastPriceRefresh, setLastPriceRefresh] = useState(null);
+  const [liveQuotes, setLiveQuotes] = useState({});
   const [reports, setReports] = useState([]);
   const [newsletters, setNewsletters] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -755,6 +760,7 @@ export default function Dashboard() {
         alert('Price refresh error: ' + data.error + (data.hint ? '\n' + data.hint : ''));
       } else {
         setLastPriceRefresh(new Date());
+        setLiveQuotes(data.quotes || {});
         // Refresh portfolio to show updated prices
         fetchPortfolio();
       }
@@ -1159,8 +1165,8 @@ export default function Dashboard() {
                   <th style={styles.th}>Symbol</th>
                   <th style={styles.th}>Type</th>
                   <th style={styles.thRight}>Price</th>
+                  <th style={styles.thRight}>Day %</th>
                   <th style={styles.thRight}>Value</th>
-                  <th style={styles.thRight}>Notional</th>
                   <th style={styles.thRight}>P/L</th>
                   <th style={styles.th}></th>
                 </tr>
@@ -1292,6 +1298,7 @@ export default function Dashboard() {
                       publicScreenshot={publicScreenshot}
                       formatMoney={fmtMoney}
                       formatPct={formatPct}
+                      liveQuotes={liveQuotes}
                     />
                   ));
                 })()}
