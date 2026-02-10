@@ -5,10 +5,17 @@ export const dynamic = 'force-dynamic';
 
 const RESEARCH_DIR = process.env.RESEARCH_DIR || '/home/ubuntu/clawd/research';
 
+// Check if file is marked private (has <!-- PRIVATE --> near top)
+function isPrivate(content) {
+  const header = content.slice(0, 500);
+  return header.includes('<!-- PRIVATE -->') || header.includes('<!--PRIVATE-->');
+}
+
 // GET: List research files or get specific file content
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const filename = searchParams.get('file');
+  const publicOnly = searchParams.get('public') === 'true';
   
   try {
     if (filename) {
@@ -17,12 +24,19 @@ export async function GET(request) {
       const filepath = join(RESEARCH_DIR, safeName);
       const content = await readFile(filepath, 'utf-8');
       const stats = await stat(filepath);
+      const fileIsPrivate = isPrivate(content);
+      
+      // Block access to private files when public=true
+      if (publicOnly && fileIsPrivate) {
+        return Response.json({ error: 'Not found' }, { status: 404 });
+      }
       
       return Response.json({
         filename: safeName,
         content,
         modified: stats.mtime,
-        size: stats.size
+        size: stats.size,
+        isPrivate: fileIsPrivate
       });
     }
     
@@ -30,10 +44,11 @@ export async function GET(request) {
     const files = await readdir(RESEARCH_DIR);
     const mdFiles = files.filter(f => f.endsWith('.md'));
     
-    const research = await Promise.all(mdFiles.map(async (f) => {
+    let research = await Promise.all(mdFiles.map(async (f) => {
       const filepath = join(RESEARCH_DIR, f);
       const stats = await stat(filepath);
       const content = await readFile(filepath, 'utf-8');
+      const fileIsPrivate = isPrivate(content);
       
       // Extract title from first # heading or filename
       const titleMatch = content.match(/^#\s+(.+)$/m);
@@ -58,9 +73,15 @@ export async function GET(request) {
         date,
         modified: stats.mtime,
         size: stats.size,
-        preview
+        preview,
+        isPrivate: fileIsPrivate
       };
     }));
+    
+    // Filter out private files if public=true
+    if (publicOnly) {
+      research = research.filter(r => !r.isPrivate);
+    }
     
     // Sort by date descending
     research.sort((a, b) => new Date(b.date) - new Date(a.date));
