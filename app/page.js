@@ -1146,8 +1146,14 @@ export default function Dashboard() {
 
   // Calculate all trade values for summary
   const tradeValues = trades.map(t => ({ ...t, values: getTradeValue(t), color: TRADE_COLORS[t.id] || '#8b949e' }));
-  const totalTradeValue = tradeValues.reduce((sum, t) => sum + t.values.total, 0);
-  const pieData = tradeValues.filter(t => t.values.total > 0).map(t => ({ name: t.name, value: t.values.total, color: t.color }));
+  // Add cash as a pseudo-trade for the summary
+  const cashTotal = portfolio?.cash?.reduce((sum, c) => sum + (c.value || 0), 0) || 0;
+  const tradeValuesWithCash = [
+    ...tradeValues,
+    { id: 'cash', name: 'Cash', values: { equity: 0, options: 0, crypto: 0, total: cashTotal, positions: [] }, color: '#8b949e', isCash: true }
+  ];
+  const totalTradeValue = tradeValuesWithCash.reduce((sum, t) => sum + t.values.total, 0);
+  const pieData = tradeValuesWithCash.filter(t => t.values.total > 0).map(t => ({ name: t.name, value: t.values.total, color: t.color }));
 
   return (
     <div style={styles.container} className="container-padding">
@@ -1610,51 +1616,55 @@ export default function Dashboard() {
                 <PieChart data={pieData.filter(d => !excludedTrades[d.name])} />
               </div>
               <div className="table-responsive">
-                <table style={{...styles.table, marginTop: 0}}>
+                <table style={{...styles.table, marginTop: 0, fontSize: '12px'}}>
                   <thead>
                     <tr>
-                      <th style={{...styles.th, width: '30px'}}></th>
-                      <th style={styles.th}>Trade</th>
-                      <th style={styles.th}>Value</th>
-                      <th style={styles.th}>%</th>
-                      <th style={{...styles.th, minWidth: '100px'}}>Eq/Opt</th>
+                      <th style={{...styles.th, width: '24px', padding: '4px 2px'}}></th>
+                      <th style={{...styles.th, padding: '4px 6px'}}>Trade</th>
+                      <th style={{...styles.th, padding: '4px 6px', textAlign: 'right'}}>Value</th>
+                      <th style={{...styles.th, padding: '4px 6px', width: '40px', textAlign: 'right'}}>%</th>
+                      <th style={{...styles.th, padding: '4px 6px', width: '80px'}}>Eq/Opt</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {tradeValues
+                    {tradeValuesWithCash
                       .filter(t => t.values.total > 0)
                       .sort((a,b) => b.values.total - a.values.total)
                       .map(t => {
                         const isExcluded = excludedTrades[t.name];
-                        const eqPct = t.values.total > 0 ? Math.round((t.values.equity + t.values.crypto) / t.values.total * 100) : 0;
-                        const optPct = 100 - eqPct;
-                        const filteredTotal = tradeValues
+                        const eqPct = t.isCash ? 100 : (t.values.total > 0 ? Math.round((t.values.equity + t.values.crypto) / t.values.total * 100) : 0);
+                        const optPct = t.isCash ? 0 : (100 - eqPct);
+                        const filteredTotal = tradeValuesWithCash
                           .filter(tv => tv.values.total > 0 && !excludedTrades[tv.name])
                           .reduce((sum, tv) => sum + tv.values.total, 0);
                         return (
                           <tr key={t.id} style={{ opacity: isExcluded ? 0.5 : 1 }}>
-                            <td style={styles.td}>
+                            <td style={{...styles.td, padding: '4px 2px'}}>
                               <input 
                                 type="checkbox" 
                                 checked={!isExcluded}
                                 onChange={() => setExcludedTrades(prev => ({ ...prev, [t.name]: !prev[t.name] }))}
-                                style={{ cursor: 'pointer' }}
+                                style={{ cursor: 'pointer', width: '14px', height: '14px' }}
                               />
                             </td>
-                            <td style={styles.td}>
-                              <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '2px', background: t.color, marginRight: '8px' }} />
+                            <td style={{...styles.td, padding: '4px 6px'}}>
+                              <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '2px', background: t.color, marginRight: '6px' }} />
                               <span style={{ whiteSpace: 'nowrap' }}>{t.name}</span>
                             </td>
-                            <td style={styles.td}>{formatMoney(t.values.total)}</td>
-                            <td style={styles.td}>{!isExcluded && filteredTotal > 0 ? Math.round(t.values.total / filteredTotal * 100) : '—'}%</td>
-                            <td style={styles.td}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                <div style={{ width: '50px', height: '8px', background: '#21262d', borderRadius: '4px', overflow: 'hidden', display: 'flex' }}>
-                                  <div style={{ width: `${eqPct}%`, background: '#3fb950' }} />
-                                  <div style={{ width: `${optPct}%`, background: '#d29922' }} />
+                            <td style={{...styles.td, padding: '4px 6px', textAlign: 'right'}}>{formatMoney(t.values.total)}</td>
+                            <td style={{...styles.td, padding: '4px 6px', textAlign: 'right'}}>{!isExcluded && filteredTotal > 0 ? Math.round(t.values.total / filteredTotal * 100) : '—'}%</td>
+                            <td style={{...styles.td, padding: '4px 6px'}}>
+                              {t.isCash ? (
+                                <span style={{ fontSize: '10px', color: '#8b949e' }}>—</span>
+                              ) : (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                  <div style={{ width: '40px', height: '6px', background: '#21262d', borderRadius: '3px', overflow: 'hidden', display: 'flex' }}>
+                                    <div style={{ width: `${eqPct}%`, background: '#3fb950' }} />
+                                    <div style={{ width: `${optPct}%`, background: '#d29922' }} />
+                                  </div>
+                                  <span style={{ fontSize: '10px', color: '#8b949e' }}>{eqPct}/{optPct}</span>
                                 </div>
-                                <span style={{ fontSize: '11px', color: '#8b949e' }}>{eqPct}/{optPct}</span>
-                              </div>
+                              )}
                             </td>
                           </tr>
                         );
