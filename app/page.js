@@ -1413,6 +1413,7 @@ export default function Dashboard() {
                       Symbol {positionsSort.field === 'symbol' && (positionsSort.dir === 'asc' ? '▲' : '▼')}
                     </th>
                     <th style={{...styles.th, padding: '6px 4px'}}>Type</th>
+                    <th style={{...styles.th, padding: '6px 4px'}}>Source</th>
                     <th style={{...styles.thRight, padding: '6px 4px'}}>Qty</th>
                     <th style={{...styles.thRight, cursor: 'pointer', padding: '6px 4px'}} onClick={() => setPositionsSort(s => ({ field: 'value', dir: s.field === 'value' && s.dir === 'desc' ? 'asc' : 'desc' }))}>
                       Value {positionsSort.field === 'value' && (positionsSort.dir === 'asc' ? '▲' : '▼')}
@@ -1451,6 +1452,11 @@ export default function Dashboard() {
                                          pos.type === 'option' ? '#d29922' : '#8b949e'
                             }}>
                               {pos.type?.toUpperCase()}
+                            </span>
+                          </td>
+                          <td style={{...styles.td, padding: '4px'}}>
+                            <span style={{ fontSize: '11px', color: '#8b949e' }}>
+                              {pos.account || '—'}
                             </span>
                           </td>
                           <td style={{...styles.tdRight, padding: '4px'}}>{pos.quantity}</td>
