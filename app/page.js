@@ -663,6 +663,10 @@ export default function Dashboard() {
   const [reviewsSummary, setReviewsSummary] = useState({});
   const [selectedReview, setSelectedReview] = useState(null);
   const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [research, setResearch] = useState([]);
+  const [selectedResearch, setSelectedResearch] = useState(null);
+  const [researchContent, setResearchContent] = useState(null);
+  const [researchLoading, setResearchLoading] = useState(false);
   const [allPositions, setAllPositions] = useState({ positions: [], trades: [] });
   const [positionsLoading, setPositionsLoading] = useState(false);
   const [positionsSort, setPositionsSort] = useState({ field: 'value', dir: 'desc' });
@@ -681,6 +685,7 @@ export default function Dashboard() {
   useEffect(() => { if (tab === 'settings') fetchUserSchedule(); }, [tab]);
   useEffect(() => { if (tab === 'reviews') fetchReviews(); }, [tab]);
   useEffect(() => { if (tab === 'positions' || tab === 'trades') fetchAllPositions(); }, [tab]);
+  useEffect(() => { if (tab === 'research') fetchResearch(); }, [tab]);
 
   function toggleChart(key) {
     setChartToggles(prev => ({ ...prev, [key]: !prev[key] }));
@@ -895,6 +900,39 @@ export default function Dashboard() {
     setReviewsLoading(false);
   }
 
+  async function fetchResearch() {
+    setResearchLoading(true);
+    try {
+      const res = await fetch('/api/research');
+      const data = await res.json();
+      setResearch(data.research || []);
+      if (data.research && data.research.length > 0 && !selectedResearch) {
+        setSelectedResearch(data.research[0]);
+        // Auto-load first research content
+        const contentRes = await fetch(`/api/research?file=${data.research[0].filename}`);
+        const contentData = await contentRes.json();
+        setResearchContent(contentData.content);
+      }
+    } catch (e) { 
+      console.error('Error fetching research:', e); 
+    }
+    setResearchLoading(false);
+  }
+
+  async function loadResearchContent(item) {
+    setSelectedResearch(item);
+    setResearchLoading(true);
+    try {
+      const res = await fetch(`/api/research?file=${item.filename}`);
+      const data = await res.json();
+      setResearchContent(data.content);
+    } catch (e) {
+      console.error('Error loading research:', e);
+      setResearchContent('Error loading content');
+    }
+    setResearchLoading(false);
+  }
+
   async function fetchJuntoStatus() {
     setJuntoLoading(true);
     try {
@@ -1107,7 +1145,7 @@ export default function Dashboard() {
 
       {/* Tabs - horizontal scroll on mobile */}
       <div style={styles.tabs} className="tabs-container">
-        {['portfolio', 'positions', 'trades', 'assets', 'reports', 'fitness', 'reviews', 'tasks', 'settings'].map(t => (
+        {['portfolio', 'positions', 'trades', 'research', 'assets', 'reports', 'fitness', 'reviews', 'tasks', 'settings'].map(t => (
           <div key={t} style={tab === t ? styles.tabActive : styles.tab} className="tab-item" onClick={() => setTab(t)}>
             {t.charAt(0).toUpperCase() + t.slice(1)}
           </div>
@@ -1755,6 +1793,72 @@ export default function Dashboard() {
             </div>
           )}
         </>
+      )}
+
+      {tab === 'research' && (
+        <div className="review-grid" style={{ display: 'grid', gridTemplateColumns: selectedResearch ? 'minmax(200px, 300px) 1fr' : '1fr', gap: '16px' }}>
+          {/* Research List */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{...styles.card, padding: '12px'}}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <h3 style={{ margin: 0, fontSize: '16px' }}>📚 Research ({research.length})</h3>
+                <button style={{...styles.btn, padding: '4px 8px', fontSize: '12px'}} onClick={fetchResearch} disabled={researchLoading}>
+                  {researchLoading ? '⏳' : '🔄'}
+                </button>
+              </div>
+              {research.map(item => (
+                <div 
+                  key={item.filename}
+                  onClick={() => loadResearchContent(item)}
+                  style={{
+                    padding: '10px 12px',
+                    background: selectedResearch?.filename === item.filename ? '#21262d' : 'transparent',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    borderLeft: selectedResearch?.filename === item.filename ? '3px solid #58a6ff' : '3px solid transparent',
+                    marginBottom: '4px'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                    {item.symbol && (
+                      <span style={{...styles.tag, background: '#238636', fontSize: '11px', padding: '2px 6px'}}>{item.symbol}</span>
+                    )}
+                    <span style={{ fontWeight: '500', fontSize: '13px', color: '#e6edf3' }}>{item.title.slice(0, 40)}{item.title.length > 40 ? '...' : ''}</span>
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#8b949e' }}>{item.date}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          {/* Research Content */}
+          {selectedResearch && (
+            <div style={styles.card}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                <div>
+                  <h2 style={{ margin: '0 0 8px 0', fontSize: '20px' }}>{selectedResearch.title}</h2>
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    {selectedResearch.symbol && (
+                      <span style={{...styles.tag, background: '#238636'}}>{selectedResearch.symbol}</span>
+                    )}
+                    <span style={{ fontSize: '13px', color: '#8b949e' }}>{selectedResearch.date}</span>
+                    <span style={{ fontSize: '12px', color: '#8b949e' }}>{(selectedResearch.size / 1024).toFixed(1)}KB</span>
+                  </div>
+                </div>
+              </div>
+              {researchLoading ? (
+                <div style={{ padding: '40px', textAlign: 'center', color: '#8b949e' }}>⏳ Loading...</div>
+              ) : researchContent ? (
+                <div 
+                  style={{ fontSize: '14px', lineHeight: '1.7', color: '#c9d1d9' }}
+                  dangerouslySetInnerHTML={{ __html: renderMarkdown(researchContent) }}
+                />
+              ) : (
+                <div style={{ padding: '40px', textAlign: 'center', color: '#8b949e' }}>Select a research report</div>
+              )}
+            </div>
+          )}
+        </div>
       )}
 
       {tab === 'assets' && (
