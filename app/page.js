@@ -624,6 +624,8 @@ export default function Dashboard() {
   const [trades, setTrades] = useState([]);
   const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [priceRefreshing, setPriceRefreshing] = useState(false);
+  const [lastPriceRefresh, setLastPriceRefresh] = useState(null);
   const [reports, setReports] = useState([]);
   const [newsletters, setNewsletters] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -742,6 +744,25 @@ export default function Dashboard() {
       setLastRefresh(new Date());
     } catch (e) { console.error(e); }
     setLoading(false);
+  }
+
+  async function refreshPrices() {
+    setPriceRefreshing(true);
+    try {
+      const res = await fetch('/api/prices?update=true');
+      const data = await res.json();
+      if (data.error) {
+        alert('Price refresh error: ' + data.error + (data.hint ? '\n' + data.hint : ''));
+      } else {
+        setLastPriceRefresh(new Date());
+        // Refresh portfolio to show updated prices
+        fetchPortfolio();
+      }
+    } catch (e) { 
+      console.error(e);
+      alert('Price refresh failed: ' + e.message);
+    }
+    setPriceRefreshing(false);
   }
 
   async function fetchReports() {
@@ -1092,7 +1113,11 @@ export default function Dashboard() {
             <button style={styles.btn} onClick={fetchPortfolio} disabled={loading}>
               {loading ? '⏳ Refreshing...' : '🔄 Refresh from Sheets'}
             </button>
-            {lastRefresh && <span style={{ color: '#8b949e', fontSize: '12px' }}>Last: {lastRefresh.toLocaleTimeString()}</span>}
+            <button style={{...styles.btn, background: '#238636'}} onClick={refreshPrices} disabled={priceRefreshing}>
+              {priceRefreshing ? '⏳ Fetching...' : '📈 Live Prices'}
+            </button>
+            {lastPriceRefresh && <span style={{ color: '#3fb950', fontSize: '12px' }}>Prices: {lastPriceRefresh.toLocaleTimeString()}</span>}
+            {lastRefresh && !lastPriceRefresh && <span style={{ color: '#8b949e', fontSize: '12px' }}>Last: {lastRefresh.toLocaleTimeString()}</span>}
           </div>
 
           <div style={styles.grid}>
