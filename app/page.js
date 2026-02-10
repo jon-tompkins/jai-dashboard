@@ -672,7 +672,7 @@ export default function Dashboard() {
   useEffect(() => { if (tab === 'tasks') fetchKanban(); }, [tab]);
   useEffect(() => { if (tab === 'settings') fetchUserSchedule(); }, [tab]);
   useEffect(() => { if (tab === 'reviews') fetchReviews(); }, [tab]);
-  useEffect(() => { if (tab === 'positions') fetchAllPositions(); }, [tab]);
+  useEffect(() => { if (tab === 'positions' || tab === 'trades') fetchAllPositions(); }, [tab]);
 
   function toggleChart(key) {
     setChartToggles(prev => ({ ...prev, [key]: !prev[key] }));
