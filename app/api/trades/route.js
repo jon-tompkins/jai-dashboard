@@ -139,3 +139,48 @@ export async function POST(request) {
     return Response.json({ error: error.message }, { status: 500 });
   }
 }
+
+export async function PATCH(request) {
+  try {
+    const body = await request.json();
+    const { id, name, thesis, direction, timeframe, conviction, status } = body;
+
+    if (!id) {
+      return Response.json({ error: 'Trade ID is required' }, { status: 400 });
+    }
+
+    const updates = {};
+    if (name !== undefined) updates.name = name;
+    if (thesis !== undefined) updates.thesis = thesis;
+    if (direction !== undefined) updates.direction = direction;
+    if (timeframe !== undefined) updates.timeframe = timeframe;
+    if (conviction !== undefined) updates.conviction = conviction;
+    if (status !== undefined) updates.status = status;
+
+    // Update theme if name changed
+    if (name) {
+      updates.theme = name.toLowerCase().replace(/\s+/g, '-');
+    }
+
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/trades?id=eq.${id}`, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPABASE_ANON,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation'
+      },
+      body: JSON.stringify(updates)
+    });
+
+    if (!res.ok) {
+      const error = await res.text();
+      throw new Error(error);
+    }
+
+    const updated = await res.json();
+    return Response.json({ trade: updated[0] });
+  } catch (error) {
+    console.error('Trades PATCH error:', error);
+    return Response.json({ error: error.message }, { status: 500 });
+  }
+}

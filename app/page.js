@@ -674,7 +674,8 @@ export default function Dashboard() {
   const [positionsLoading, setPositionsLoading] = useState(false);
   const [positionsSort, setPositionsSort] = useState({ field: 'value', dir: 'desc' });
   const [tradeListView, setTradeListView] = useState(true);
-  const [includeCashInAllocation, setIncludeCashInAllocation] = useState(false);
+  const [excludedTrades, setExcludedTrades] = useState({});
+  const [editingTrade, setEditingTrade] = useState(null);
   const [expandedTrades, setExpandedTrades] = useState({});
   const [expandedUnderlyings, setExpandedUnderlyings] = useState({});
   const [showAddTrade, setShowAddTrade] = useState(false);
@@ -841,11 +842,40 @@ export default function Dashboard() {
         setNewTradeForm({ name: '', thesis: '', direction: 'long', timeframe: 'medium', conviction: 3, status: 'active' });
         setShowAddTrade(false);
         fetchTrades();
-        fetchPositions();
+        fetchAllPositions();
       } else {
         console.error('Failed to create trade');
+        alert('Failed to create trade - check console for details');
       }
-    } catch (e) { console.error(e); }
+    } catch (e) { 
+      console.error(e); 
+      alert('Error creating trade: ' + e.message);
+    }
+  }
+
+  async function updateTrade() {
+    if (!editingTrade?.id || !newTradeForm.name) return;
+    
+    try {
+      const res = await fetch('/api/trades', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: editingTrade.id, ...newTradeForm })
+      });
+      
+      if (res.ok) {
+        setNewTradeForm({ name: '', thesis: '', direction: 'long', timeframe: 'medium', conviction: 3, status: 'active' });
+        setEditingTrade(null);
+        fetchTrades();
+        fetchAllPositions();
+      } else {
+        console.error('Failed to update trade');
+        alert('Failed to update trade - check console for details');
+      }
+    } catch (e) { 
+      console.error(e); 
+      alert('Error updating trade: ' + e.message);
+    }
   }
 
   function toggleTradeExpanded(tradeId) {
@@ -1461,57 +1491,111 @@ export default function Dashboard() {
             </button>
             <button 
               style={{...styles.btn, background: '#238636'}} 
-              onClick={() => setShowAddTrade(true)}
+              onClick={() => { setShowAddTrade(true); setEditingTrade(null); setNewTradeForm({ name: '', thesis: '', direction: 'long', timeframe: 'medium', conviction: 3, status: 'active' }); }}
             >
-              ➕ Add Trade
+              ⚙️ Manage Trades
             </button>
           </div>
 
-          {/* Add Trade Modal */}
+          {/* Manage Trades Modal */}
           {showAddTrade && (
             <div style={{...styles.card, marginBottom: '16px', border: '1px solid #238636'}}>
-              <div style={styles.cardTitle}>➕ New Trade</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
-                <input
-                  placeholder="Trade Name *"
-                  value={newTradeForm.name}
-                  onChange={(e) => setNewTradeForm({...newTradeForm, name: e.target.value})}
-                  style={{ padding: '8px', background: '#0d1117', border: '1px solid #30363d', borderRadius: '4px', color: '#e6edf3' }}
-                />
-                <select
-                  value={newTradeForm.direction}
-                  onChange={(e) => setNewTradeForm({...newTradeForm, direction: e.target.value})}
-                  style={{ padding: '8px', background: '#0d1117', border: '1px solid #30363d', borderRadius: '4px', color: '#e6edf3' }}
-                >
-                  <option value="long">Long</option>
-                  <option value="short">Short</option>
-                </select>
-                <select
-                  value={newTradeForm.timeframe}
-                  onChange={(e) => setNewTradeForm({...newTradeForm, timeframe: e.target.value})}
-                  style={{ padding: '8px', background: '#0d1117', border: '1px solid #30363d', borderRadius: '4px', color: '#e6edf3' }}
-                >
-                  <option value="short">Short Term</option>
-                  <option value="medium">Medium Term</option>
-                  <option value="long">Long Term</option>
-                </select>
-                <select
-                  value={newTradeForm.conviction}
-                  onChange={(e) => setNewTradeForm({...newTradeForm, conviction: parseInt(e.target.value)})}
-                  style={{ padding: '8px', background: '#0d1117', border: '1px solid #30363d', borderRadius: '4px', color: '#e6edf3' }}
-                >
-                  {[1,2,3,4,5].map(n => <option key={n} value={n}>Conviction: {n}</option>)}
-                </select>
+              <div style={styles.cardTitle}>⚙️ Manage Trades</div>
+              
+              {/* Existing Trades List */}
+              <div style={{ marginBottom: '16px', maxHeight: '200px', overflowY: 'auto' }}>
+                <div style={{ fontSize: '12px', color: '#8b949e', marginBottom: '8px', textTransform: 'uppercase' }}>Existing Trades (click to edit)</div>
+                {trades.map(t => (
+                  <div 
+                    key={t.id}
+                    onClick={() => {
+                      setEditingTrade(t);
+                      setNewTradeForm({ name: t.name, thesis: t.thesis || '', direction: t.direction || 'long', timeframe: t.timeframe || 'medium', conviction: t.conviction || 3, status: t.status || 'active' });
+                    }}
+                    style={{ 
+                      padding: '8px 12px', 
+                      background: editingTrade?.id === t.id ? '#21262d' : '#0d1117', 
+                      border: editingTrade?.id === t.id ? '1px solid #58a6ff' : '1px solid #30363d',
+                      borderRadius: '4px', 
+                      marginBottom: '4px', 
+                      cursor: 'pointer',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '2px', background: t.color || '#8b949e' }} />
+                      <span style={{ fontWeight: '500' }}>{t.name}</span>
+                      <ConvictionDots level={t.conviction} />
+                    </div>
+                    <span style={{ fontSize: '11px', color: '#8b949e' }}>{t.direction} · {t.timeframe}</span>
+                  </div>
+                ))}
               </div>
-              <textarea
-                placeholder="Thesis / Notes"
-                value={newTradeForm.thesis}
-                onChange={(e) => setNewTradeForm({...newTradeForm, thesis: e.target.value})}
-                style={{ width: '100%', padding: '8px', background: '#0d1117', border: '1px solid #30363d', borderRadius: '4px', color: '#e6edf3', marginTop: '12px', minHeight: '60px' }}
-              />
-              <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
-                <button style={{...styles.btn, background: '#238636'}} onClick={createTrade}>Create Trade</button>
-                <button style={styles.btn} onClick={() => setShowAddTrade(false)}>Cancel</button>
+
+              <div style={{ borderTop: '1px solid #30363d', paddingTop: '16px' }}>
+                <div style={{ fontSize: '12px', color: '#8b949e', marginBottom: '8px', textTransform: 'uppercase' }}>
+                  {editingTrade ? `✏️ Edit: ${editingTrade.name}` : '➕ Create New Trade'}
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                  <input
+                    placeholder="Trade Name *"
+                    value={newTradeForm.name}
+                    onChange={(e) => setNewTradeForm({...newTradeForm, name: e.target.value})}
+                    style={{ padding: '8px', background: '#0d1117', border: '1px solid #30363d', borderRadius: '4px', color: '#e6edf3' }}
+                  />
+                  <select
+                    value={newTradeForm.direction}
+                    onChange={(e) => setNewTradeForm({...newTradeForm, direction: e.target.value})}
+                    style={{ padding: '8px', background: '#0d1117', border: '1px solid #30363d', borderRadius: '4px', color: '#e6edf3' }}
+                  >
+                    <option value="long">Long</option>
+                    <option value="short">Short</option>
+                  </select>
+                  <select
+                    value={newTradeForm.timeframe}
+                    onChange={(e) => setNewTradeForm({...newTradeForm, timeframe: e.target.value})}
+                    style={{ padding: '8px', background: '#0d1117', border: '1px solid #30363d', borderRadius: '4px', color: '#e6edf3' }}
+                  >
+                    <option value="short">Short Term</option>
+                    <option value="medium">Medium Term</option>
+                    <option value="long">Long Term</option>
+                  </select>
+                  <select
+                    value={newTradeForm.conviction}
+                    onChange={(e) => setNewTradeForm({...newTradeForm, conviction: parseInt(e.target.value)})}
+                    style={{ padding: '8px', background: '#0d1117', border: '1px solid #30363d', borderRadius: '4px', color: '#e6edf3' }}
+                  >
+                    {[1,2,3,4,5].map(n => <option key={n} value={n}>Conviction: {n}</option>)}
+                  </select>
+                  <select
+                    value={newTradeForm.status}
+                    onChange={(e) => setNewTradeForm({...newTradeForm, status: e.target.value})}
+                    style={{ padding: '8px', background: '#0d1117', border: '1px solid #30363d', borderRadius: '4px', color: '#e6edf3' }}
+                  >
+                    <option value="active">Active</option>
+                    <option value="watching">Watching</option>
+                    <option value="closed">Closed</option>
+                  </select>
+                </div>
+                <textarea
+                  placeholder="Thesis / Notes"
+                  value={newTradeForm.thesis}
+                  onChange={(e) => setNewTradeForm({...newTradeForm, thesis: e.target.value})}
+                  style={{ width: '100%', padding: '8px', background: '#0d1117', border: '1px solid #30363d', borderRadius: '4px', color: '#e6edf3', marginTop: '12px', minHeight: '60px' }}
+                />
+                <div style={{ marginTop: '12px', display: 'flex', gap: '8px' }}>
+                  {editingTrade ? (
+                    <>
+                      <button style={{...styles.btn, background: '#238636'}} onClick={updateTrade}>💾 Save Changes</button>
+                      <button style={styles.btn} onClick={() => { setEditingTrade(null); setNewTradeForm({ name: '', thesis: '', direction: 'long', timeframe: 'medium', conviction: 3, status: 'active' }); }}>Cancel Edit</button>
+                    </>
+                  ) : (
+                    <button style={{...styles.btn, background: '#238636'}} onClick={createTrade}>➕ Create Trade</button>
+                  )}
+                  <button style={styles.btn} onClick={() => { setShowAddTrade(false); setEditingTrade(null); }}>Close</button>
+                </div>
               </div>
             </div>
           )}
@@ -1520,24 +1604,16 @@ export default function Dashboard() {
           <div style={{...styles.card, marginBottom: '24px'}}>
             <div style={{...styles.cardTitle, justifyContent: 'space-between'}}>
               <span>📊 Trade Allocation Summary</span>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#8b949e', cursor: 'pointer' }}>
-                <input 
-                  type="checkbox" 
-                  checked={includeCashInAllocation} 
-                  onChange={(e) => setIncludeCashInAllocation(e.target.checked)}
-                  style={{ cursor: 'pointer' }}
-                />
-                Include Cash
-              </label>
             </div>
             <div style={styles.summaryGrid} className="summary-grid">
               <div className="pie-container">
-                <PieChart data={includeCashInAllocation ? pieData : pieData.filter(d => d.name !== 'Cash')} />
+                <PieChart data={pieData.filter(d => !excludedTrades[d.name])} />
               </div>
               <div className="table-responsive">
                 <table style={{...styles.table, marginTop: 0}}>
                   <thead>
                     <tr>
+                      <th style={{...styles.th, width: '30px'}}></th>
                       <th style={styles.th}>Trade</th>
                       <th style={styles.th}>Value</th>
                       <th style={styles.th}>%</th>
@@ -1547,21 +1623,30 @@ export default function Dashboard() {
                   <tbody>
                     {tradeValues
                       .filter(t => t.values.total > 0)
-                      .filter(t => includeCashInAllocation || t.id !== 'cash')
                       .sort((a,b) => b.values.total - a.values.total)
                       .map(t => {
+                        const isExcluded = excludedTrades[t.name];
                         const eqPct = t.values.total > 0 ? Math.round((t.values.equity + t.values.crypto) / t.values.total * 100) : 0;
                         const optPct = 100 - eqPct;
-                        const filteredTotal = includeCashInAllocation ? totalTradeValue : 
-                          tradeValues.filter(tv => tv.id !== 'cash').reduce((sum, tv) => sum + tv.values.total, 0);
+                        const filteredTotal = tradeValues
+                          .filter(tv => tv.values.total > 0 && !excludedTrades[tv.name])
+                          .reduce((sum, tv) => sum + tv.values.total, 0);
                         return (
-                          <tr key={t.id}>
+                          <tr key={t.id} style={{ opacity: isExcluded ? 0.5 : 1 }}>
+                            <td style={styles.td}>
+                              <input 
+                                type="checkbox" 
+                                checked={!isExcluded}
+                                onChange={() => setExcludedTrades(prev => ({ ...prev, [t.name]: !prev[t.name] }))}
+                                style={{ cursor: 'pointer' }}
+                              />
+                            </td>
                             <td style={styles.td}>
                               <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '2px', background: t.color, marginRight: '8px' }} />
                               <span style={{ whiteSpace: 'nowrap' }}>{t.name}</span>
                             </td>
                             <td style={styles.td}>{formatMoney(t.values.total)}</td>
-                            <td style={styles.td}>{filteredTotal > 0 ? Math.round(t.values.total / filteredTotal * 100) : 0}%</td>
+                            <td style={styles.td}>{!isExcluded && filteredTotal > 0 ? Math.round(t.values.total / filteredTotal * 100) : '—'}%</td>
                             <td style={styles.td}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 <div style={{ width: '50px', height: '8px', background: '#21262d', borderRadius: '4px', overflow: 'hidden', display: 'flex' }}>
@@ -1577,7 +1662,7 @@ export default function Dashboard() {
                   </tbody>
                 </table>
                 <div style={{ fontSize: '11px', color: '#8b949e', marginTop: '8px' }}>
-                  🟢 Equity/Crypto | 🟡 Options
+                  🟢 Equity/Crypto | 🟡 Options • Uncheck to exclude from chart
                 </div>
               </div>
             </div>
@@ -1639,6 +1724,7 @@ export default function Dashboard() {
                           <span style={{ color: '#8b949e', fontSize: '12px' }}>{isExpanded ? '▼' : '▶'}</span>
                           <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '2px', background: trade.color }} />
                           <strong style={{ fontSize: '14px' }}>{trade.name}</strong>
+                          {trade.conviction && <ConvictionDots level={trade.conviction} />}
                           <span style={{ color: '#8b949e', fontSize: '12px' }}>({Object.keys(trade.underlyings).length})</span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
