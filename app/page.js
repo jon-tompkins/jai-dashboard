@@ -667,6 +667,7 @@ export default function Dashboard() {
   const [positionsLoading, setPositionsLoading] = useState(false);
   const [positionsSort, setPositionsSort] = useState({ field: 'value', dir: 'desc' });
   const [tradeListView, setTradeListView] = useState(true);
+  const [includeCashInAllocation, setIncludeCashInAllocation] = useState(false);
   const [expandedTrades, setExpandedTrades] = useState({});
   const [expandedUnderlyings, setExpandedUnderlyings] = useState({});
   const [showAddTrade, setShowAddTrade] = useState(false);
@@ -1476,10 +1477,21 @@ export default function Dashboard() {
 
           {/* Summary Section */}
           <div style={{...styles.card, marginBottom: '24px'}}>
-            <div style={styles.cardTitle}>📊 Trade Allocation Summary</div>
+            <div style={{...styles.cardTitle, justifyContent: 'space-between'}}>
+              <span>📊 Trade Allocation Summary</span>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#8b949e', cursor: 'pointer' }}>
+                <input 
+                  type="checkbox" 
+                  checked={includeCashInAllocation} 
+                  onChange={(e) => setIncludeCashInAllocation(e.target.checked)}
+                  style={{ cursor: 'pointer' }}
+                />
+                Include Cash
+              </label>
+            </div>
             <div style={styles.summaryGrid} className="summary-grid">
               <div className="pie-container">
-                <PieChart data={pieData} />
+                <PieChart data={includeCashInAllocation ? pieData : pieData.filter(d => d.name !== 'Cash')} />
               </div>
               <div className="table-responsive">
                 <table style={{...styles.table, marginTop: 0}}>
@@ -1492,29 +1504,35 @@ export default function Dashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {tradeValues.filter(t => t.values.total > 0).sort((a,b) => b.values.total - a.values.total).map(t => {
-                      const eqPct = t.values.total > 0 ? Math.round((t.values.equity + t.values.crypto) / t.values.total * 100) : 0;
-                      const optPct = 100 - eqPct;
-                      return (
-                        <tr key={t.id}>
-                          <td style={styles.td}>
-                            <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '2px', background: t.color, marginRight: '8px' }} />
-                            <span style={{ whiteSpace: 'nowrap' }}>{t.name}</span>
-                          </td>
-                          <td style={styles.td}>{formatMoney(t.values.total)}</td>
-                          <td style={styles.td}>{totalTradeValue > 0 ? Math.round(t.values.total / totalTradeValue * 100) : 0}%</td>
-                          <td style={styles.td}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                              <div style={{ width: '50px', height: '8px', background: '#21262d', borderRadius: '4px', overflow: 'hidden', display: 'flex' }}>
-                                <div style={{ width: `${eqPct}%`, background: '#3fb950' }} />
-                                <div style={{ width: `${optPct}%`, background: '#d29922' }} />
+                    {tradeValues
+                      .filter(t => t.values.total > 0)
+                      .filter(t => includeCashInAllocation || t.id !== 'cash')
+                      .sort((a,b) => b.values.total - a.values.total)
+                      .map(t => {
+                        const eqPct = t.values.total > 0 ? Math.round((t.values.equity + t.values.crypto) / t.values.total * 100) : 0;
+                        const optPct = 100 - eqPct;
+                        const filteredTotal = includeCashInAllocation ? totalTradeValue : 
+                          tradeValues.filter(tv => tv.id !== 'cash').reduce((sum, tv) => sum + tv.values.total, 0);
+                        return (
+                          <tr key={t.id}>
+                            <td style={styles.td}>
+                              <span style={{ display: 'inline-block', width: '10px', height: '10px', borderRadius: '2px', background: t.color, marginRight: '8px' }} />
+                              <span style={{ whiteSpace: 'nowrap' }}>{t.name}</span>
+                            </td>
+                            <td style={styles.td}>{formatMoney(t.values.total)}</td>
+                            <td style={styles.td}>{filteredTotal > 0 ? Math.round(t.values.total / filteredTotal * 100) : 0}%</td>
+                            <td style={styles.td}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <div style={{ width: '50px', height: '8px', background: '#21262d', borderRadius: '4px', overflow: 'hidden', display: 'flex' }}>
+                                  <div style={{ width: `${eqPct}%`, background: '#3fb950' }} />
+                                  <div style={{ width: `${optPct}%`, background: '#d29922' }} />
+                                </div>
+                                <span style={{ fontSize: '11px', color: '#8b949e' }}>{eqPct}/{optPct}</span>
                               </div>
-                              <span style={{ fontSize: '11px', color: '#8b949e' }}>{eqPct}/{optPct}</span>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                            </td>
+                          </tr>
+                        );
+                      })}
                   </tbody>
                 </table>
                 <div style={{ fontSize: '11px', color: '#8b949e', marginTop: '8px' }}>
@@ -1629,12 +1647,13 @@ export default function Dashboard() {
                                 {isUnderlyingExpanded && (
                                   <div style={{ marginTop: '6px', marginLeft: '16px' }}>
                                     {positions.map((p, i) => (
-                                      <div key={i} style={{ fontSize: '11px', color: '#8b949e', display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
-                                        <span>
+                                      <div key={i} style={{ fontSize: '11px', color: '#8b949e', display: 'flex', justifyContent: 'space-between', padding: '2px 0', gap: '8px' }}>
+                                        <span style={{ flex: 1 }}>
                                           <span style={{...styles.tag, background: p.type === 'option' ? '#d29922' : p.type === 'crypto' ? '#8957e5' : '#238636', fontSize: '9px', padding: '1px 4px'}}>{p.type}</span>
-                                          {p.type === 'option' ? ` ${p.optionType?.toUpperCase() || ''} $${p.strike} ${p.expiry || ''}` : ` ${p.quantity} shares @ $${p.price?.toFixed(2)}`}
+                                          {p.type === 'option' ? ` ${p.optionType?.toUpperCase() || ''} $${p.strike} ${p.expiry || ''}` : ` ${p.quantity} @ $${p.price?.toFixed(2)}`}
                                         </span>
-                                        <span>{formatMoney(p.value)}</span>
+                                        <span style={{ color: '#58a6ff', fontSize: '10px', minWidth: '60px' }}>{p.account || 'default'}</span>
+                                        <span style={{ minWidth: '70px', textAlign: 'right' }}>{formatMoney(p.value)}</span>
                                       </div>
                                     ))}
                                   </div>
