@@ -1145,7 +1145,7 @@ export default function Dashboard() {
 
       {/* Tabs - horizontal scroll on mobile */}
       <div style={styles.tabs} className="tabs-container">
-        {['portfolio', 'positions', 'trades', 'research', 'assets', 'reports', 'fitness', 'reviews', 'tasks', 'settings'].map(t => (
+        {['portfolio', 'positions', 'trades', 'assets', 'reports', 'fitness', 'reviews', 'tasks', 'settings'].map(t => (
           <div key={t} style={tab === t ? styles.tabActive : styles.tab} className="tab-item" onClick={() => setTab(t)}>
             {t.charAt(0).toUpperCase() + t.slice(1)}
           </div>
