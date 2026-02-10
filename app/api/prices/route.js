@@ -4,6 +4,17 @@ const FINNHUB_KEY = process.env.FINNHUB_API_KEY;
 const SUPABASE_URL = "https://lsqlqssigerzghlxfxjl.supabase.co";
 const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxzcWxxc3NpZ2VyemdobHhmeGpsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk1NDA5NTEsImV4cCI6MjA4NTExNjk1MX0.jqoZUtW_gb8rehPteVgjmLLLlPRLYV-0fNJkpLGcf-s";
 
+// Crypto symbol to CoinGecko ID mapping
+const CRYPTO_IDS = {
+  'BTC': 'bitcoin',
+  'ETH': 'ethereum',
+  'USDC': 'usd-coin',
+  'ZRO': 'layerzero',
+  'UNI': 'uniswap',
+  'REN': 'republic-protocol',
+  'HYPE': 'hyperliquid'
+};
+
 // Finnhub quote endpoint
 async function getQuote(symbol) {
   if (!FINNHUB_KEY) return null;
@@ -15,7 +26,6 @@ async function getQuote(symbol) {
     );
     if (!res.ok) return null;
     const data = await res.json();
-    // Finnhub returns: c=current, h=high, l=low, o=open, pc=previous close, t=timestamp
     if (data.c && data.c > 0) {
       return {
         price: data.c,
@@ -25,7 +35,8 @@ async function getQuote(symbol) {
         low: data.l,
         open: data.o,
         prevClose: data.pc,
-        timestamp: data.t
+        timestamp: data.t,
+        source: 'finnhub'
       };
     }
     return null;
@@ -35,22 +46,66 @@ async function getQuote(symbol) {
   }
 }
 
-// Batch fetch with rate limiting (60/min = 1/sec to be safe)
+// CoinGecko crypto prices (free, no API key needed)
+async function getCryptoPrices(symbols) {
+  const results = {};
+  const cryptoSymbols = symbols.filter(s => CRYPTO_IDS[s]);
+  
+  if (cryptoSymbols.length === 0) return results;
+  
+  const ids = cryptoSymbols.map(s => CRYPTO_IDS[s]).join(',');
+  
+  try {
+    const res = await fetch(
+      `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`,
+      { cache: 'no-store' }
+    );
+    if (!res.ok) return results;
+    
+    const data = await res.json();
+    
+    for (const symbol of cryptoSymbols) {
+      const id = CRYPTO_IDS[symbol];
+      if (data[id]) {
+        const price = data[id].usd;
+        const change24h = data[id].usd_24h_change || 0;
+        results[symbol] = {
+          price,
+          change: price * (change24h / 100),
+          changePercent: change24h,
+          prevClose: price / (1 + change24h / 100),
+          source: 'coingecko'
+        };
+      }
+    }
+  } catch (e) {
+    console.error('CoinGecko error:', e.message);
+  }
+  
+  return results;
+}
+
+// Batch fetch with rate limiting
 async function batchFetchQuotes(symbols) {
   const results = {};
   const uniqueSymbols = [...new Set(symbols)].filter(s => s && !s.includes(' '));
   
-  // Skip money market funds and crypto (Finnhub doesn't cover these well)
+  // Separate crypto and stock symbols
+  const cryptoSymbols = uniqueSymbols.filter(s => CRYPTO_IDS[s]);
   const stockSymbols = uniqueSymbols.filter(s => 
-    !['SPAXX', 'SPRXX', 'FDRXX', 'BTC', 'ETH', 'USDC', 'ZRO', 'UNI', 'REN', 'HYPE'].includes(s)
+    !CRYPTO_IDS[s] && !['SPAXX', 'SPRXX', 'FDRXX', 'CASH'].includes(s)
   );
   
+  // Fetch crypto prices from CoinGecko (single batch call)
+  const cryptoQuotes = await getCryptoPrices(cryptoSymbols);
+  Object.assign(results, cryptoQuotes);
+  
+  // Fetch stock prices from Finnhub (one by one with rate limiting)
   for (const symbol of stockSymbols) {
     const quote = await getQuote(symbol);
     if (quote) {
       results[symbol] = quote;
     }
-    // Rate limit: wait 100ms between calls (safe for 60/min limit)
     await new Promise(r => setTimeout(r, 100));
   }
   
@@ -74,10 +129,8 @@ export async function GET(request) {
     let symbols = [];
     
     if (symbolsParam) {
-      // Specific symbols requested
       symbols = symbolsParam.split(',').map(s => s.trim().toUpperCase());
     } else {
-      // Fetch all position symbols from database
       const [posRes, optRes] = await Promise.all([
         fetch(`${SUPABASE_URL}/rest/v1/positions?select=symbol`, {
           headers: { 'apikey': SUPABASE_ANON }
@@ -96,7 +149,7 @@ export async function GET(request) {
       ];
     }
 
-    // Fetch quotes
+    // Fetch quotes from both sources
     const quotes = await batchFetchQuotes(symbols);
     const fetchedCount = Object.keys(quotes).length;
     
@@ -117,19 +170,21 @@ export async function GET(request) {
           })
         });
         
-        // Update options table (underlying price)
-        await fetch(`${SUPABASE_URL}/rest/v1/options?underlying=eq.${symbol}`, {
-          method: 'PATCH',
-          headers: {
-            'apikey': SUPABASE_ANON,
-            'Content-Type': 'application/json',
-            'Prefer': 'return=minimal'
-          },
-          body: JSON.stringify({
-            underlying_price: quote.price,
-            updated_at: new Date().toISOString()
-          })
-        });
+        // Update options table (underlying price) for stocks
+        if (quote.source === 'finnhub') {
+          await fetch(`${SUPABASE_URL}/rest/v1/options?underlying=eq.${symbol}`, {
+            method: 'PATCH',
+            headers: {
+              'apikey': SUPABASE_ANON,
+              'Content-Type': 'application/json',
+              'Prefer': 'return=minimal'
+            },
+            body: JSON.stringify({
+              underlying_price: quote.price,
+              updated_at: new Date().toISOString()
+            })
+          });
+        }
       }
     }
 
@@ -151,9 +206,5 @@ export async function GET(request) {
 export async function POST(request) {
   const url = new URL(request.url);
   url.searchParams.set('update', 'true');
-  
-  // Reuse GET logic with update=true
   return GET(new Request(url));
 }
-// Trigger redeploy Tue Feb 10 14:44:05 UTC 2026
-// redeploy 1770735680
