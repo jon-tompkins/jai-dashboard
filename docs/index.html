@@ -309,21 +309,36 @@
         
         function getFileType(name) {
             const lower = name.toLowerCase();
-            if (lower.includes('jeb') || lower.includes('evaluation')) return 'jeb';
-            if (lower.includes('ant') || lower.includes('timing')) return 'ant';
-            if (lower.includes('scout') || lower.includes('report')) return 'scout';
+            if (lower.includes('jeb')) return 'jeb';
+            if (lower.includes('ant')) return 'ant';
+            if (lower.includes('scout')) return 'scout';
+            // Deep dives and thesis reports are Scout's domain
+            if (lower.includes('deep-dive') || lower.includes('thesis') || lower.includes('exposure')) return 'scout';
             if (lower.includes('readme') || lower.includes('doc') || lower.includes('instruction')) return 'doc';
-            return 'doc';
+            return 'scout'; // Default research to Scout
         }
         
         function formatTitle(filename) {
-            return filename
+            // Known tickers/terms that should be uppercase
+            const upperCase = ['ceg', 'vrtx', 'kkr', 'apo', 'vno', 'dnn', 'lac', 'pe', 'smci', 'et'];
+            
+            // Remove date suffix and extension
+            let title = filename
                 .replace('.md', '')
-                .replace(/-/g, ' ')
-                .replace(/(\d{4}) (\d{2}) (\d{2})/, '$1-$2-$3')
+                .replace(/-\d{4}-\d{2}-\d{2}$/, '')
+                .replace(/-/g, ' ');
+            
+            // Capitalize words, uppercase known tickers
+            title = title
                 .split(' ')
-                .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+                .map(w => {
+                    const lower = w.toLowerCase();
+                    if (upperCase.includes(lower)) return w.toUpperCase();
+                    return w.charAt(0).toUpperCase() + w.slice(1);
+                })
                 .join(' ');
+            
+            return title;
         }
         
         function formatDate(filename) {
@@ -354,7 +369,17 @@
                             url: f.download_url,
                             type: getFileType(f.name)
                         }))
-                        .sort((a, b) => b.name.localeCompare(a.name));
+                        .sort((a, b) => {
+                            // Extract dates from filenames and sort newest first
+                            const dateA = a.name.match(/(\d{4}-\d{2}-\d{2})/);
+                            const dateB = b.name.match(/(\d{4}-\d{2}-\d{2})/);
+                            if (dateA && dateB) {
+                                const diff = dateB[1].localeCompare(dateA[1]);
+                                if (diff !== 0) return diff;
+                            }
+                            // Same date: sort by modification time proxy (longer name = more specific = later)
+                            return b.name.localeCompare(a.name);
+                        });
                 }
             } catch (e) {
                 console.log('GitHub API failed, using fallback');
