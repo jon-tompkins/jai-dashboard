@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Research Viewer</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --bg-card: #161b22;
+            --border: #30363d;
+            --text: #e6edf3;
+            --text-muted: #8b949e;
+            --accent: #58a6ff;
+            --accent-dim: #388bfd;
+            --green: #3fb950;
+            --red: #f85149;
+            --yellow: #d29922;
+        }
+        
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 0;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 30px;
+        }
+        
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent);
+            text-decoration: none;
+        }
+        
+        .logo span { color: var(--text-muted); font-weight: 400; }
+        
+        nav a {
+            color: var(--text-muted);
+            text-decoration: none;
+            margin-left: 20px;
+            font-size: 0.9rem;
+        }
+        
+        nav a:hover { color: var(--accent); }
+        
+        .file-list {
+            display: grid;
+            gap: 12px;
+        }
+        
+        .file-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px 20px;
+            cursor: pointer;
+            transition: border-color 0.2s, transform 0.1s;
+        }
+        
+        .file-item:hover {
+            border-color: var(--accent);
+            transform: translateX(4px);
+        }
+        
+        .file-item h3 {
+            font-size: 1rem;
+            color: var(--accent);
+            margin-bottom: 4px;
+        }
+        
+        .file-item .meta {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+        
+        .file-item .type {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-right: 8px;
+        }
+        
+        .type-jeb { background: #1f3d1f; color: var(--green); }
+        .type-ant { background: #3d2f1f; color: var(--yellow); }
+        .type-scout { background: #1f2d3d; color: var(--accent); }
+        .type-doc { background: #2d1f3d; color: #a371f7; }
+        
+        #content {
+            display: none;
+        }
+        
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+            padding: 8px 0;
+        }
+        
+        .back-btn:hover { color: var(--accent); }
+        
+        .content-title {
+            font-size: 1.5rem;
+            margin-bottom: 8px;
+            color: var(--text);
+        }
+        
+        .content-meta {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .markdown-body {
+            background: var(--bg-card);
+            padding: 32px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+        
+        .markdown-body h1, .markdown-body h2, .markdown-body h3 {
+            color: var(--text);
+            margin-top: 24px;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .markdown-body h1:first-child { margin-top: 0; }
+        
+        .markdown-body p { margin-bottom: 16px; }
+        
+        .markdown-body ul, .markdown-body ol {
+            margin-bottom: 16px;
+            padding-left: 24px;
+        }
+        
+        .markdown-body li { margin-bottom: 8px; }
+        
+        .markdown-body code {
+            background: var(--bg);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        
+        .markdown-body pre {
+            background: var(--bg);
+            padding: 16px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin-bottom: 16px;
+        }
+        
+        .markdown-body pre code {
+            background: none;
+            padding: 0;
+        }
+        
+        .markdown-body table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 16px;
+        }
+        
+        .markdown-body th, .markdown-body td {
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            text-align: left;
+        }
+        
+        .markdown-body th {
+            background: var(--bg);
+            font-weight: 600;
+        }
+        
+        .markdown-body blockquote {
+            border-left: 4px solid var(--accent);
+            padding-left: 16px;
+            color: var(--text-muted);
+            margin-bottom: 16px;
+        }
+        
+        .markdown-body strong { color: var(--text); }
+        
+        .markdown-body a { color: var(--accent); }
+        
+        .markdown-body hr {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 24px 0;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-muted);
+        }
+        
+        .categories {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .category-btn {
+            padding: 6px 14px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+        
+        .category-btn:hover, .category-btn.active {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: rgba(88, 166, 255, 0.1);
+        }
+        
+        @media (max-width: 600px) {
+            .container { padding: 16px; }
+            .markdown-body { padding: 20px; }
+            header { flex-direction: column; gap: 12px; }
+            nav { display: flex; gap: 16px; }
+            nav a { margin: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <a href="#" class="logo" onclick="showList(); return false;">
+                📊 Research<span>Viewer</span>
+            </a>
+            <nav>
+                <a href="https://myjunto.xyz/research" target="_blank">MyJunto</a>
+                <a href="https://github.com/jon-tompkins/jai-dashboard" target="_blank">GitHub</a>
+            </nav>
+        </header>
+        
+        <main id="list">
+            <div class="categories">
+                <button class="category-btn active" data-filter="all">All</button>
+                <button class="category-btn" data-filter="scout">Scout</button>
+                <button class="category-btn" data-filter="jeb">Jeb</button>
+                <button class="category-btn" data-filter="ant">Ant</button>
+                <button class="category-btn" data-filter="doc">Docs</button>
+            </div>
+            <div class="file-list" id="fileList">
+                <div class="loading">Loading reports...</div>
+            </div>
+        </main>
+        
+        <main id="content">
+            <a href="#" class="back-btn" onclick="showList(); return false;">
+                ← Back to list
+            </a>
+            <h1 class="content-title" id="contentTitle"></h1>
+            <div class="content-meta" id="contentMeta"></div>
+            <div class="markdown-body" id="markdownContent"></div>
+        </main>
+    </div>
+    
+    <script>
+        const REPO_OWNER = 'jon-tompkins';
+        const REPO_NAME = 'jai-dashboard';
+        const REPORTS_PATH = 'public';
+        
+        // Also check clawd reviews if this fails
+        const FALLBACK_FILES = [
+            { name: 'jeb-evaluations-2026-02-16.md', type: 'jeb' },
+            { name: 'ant-timing-2026-02-16.md', type: 'ant' },
+            { name: 'scout-report-industries-2026-02-16.md', type: 'scout' }
+        ];
+        
+        let allFiles = [];
+        let currentFilter = 'all';
+        
+        function getFileType(name) {
+            const lower = name.toLowerCase();
+            if (lower.includes('jeb') || lower.includes('evaluation')) return 'jeb';
+            if (lower.includes('ant') || lower.includes('timing')) return 'ant';
+            if (lower.includes('scout') || lower.includes('report')) return 'scout';
+            if (lower.includes('readme') || lower.includes('doc') || lower.includes('instruction')) return 'doc';
+            return 'doc';
+        }
+        
+        function formatTitle(filename) {
+            return filename
+                .replace('.md', '')
+                .replace(/-/g, ' ')
+                .replace(/(\d{4}) (\d{2}) (\d{2})/, '$1-$2-$3')
+                .split(' ')
+                .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+                .join(' ');
+        }
+        
+        function formatDate(filename) {
+            const match = filename.match(/(\d{4})-(\d{2})-(\d{2})/);
+            if (match) {
+                const date = new Date(match[1], match[2]-1, match[3]);
+                return date.toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric' 
+                });
+            }
+            return '';
+        }
+        
+        async function loadFiles() {
+            const fileList = document.getElementById('fileList');
+            
+            try {
+                // Try GitHub API first
+                const res = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${REPORTS_PATH}`);
+                if (res.ok) {
+                    const files = await res.json();
+                    allFiles = files
+                        .filter(f => f.name.endsWith('.md') && !f.name.toLowerCase().includes('readme'))
+                        .map(f => ({
+                            name: f.name,
+                            url: f.download_url,
+                            type: getFileType(f.name)
+                        }))
+                        .sort((a, b) => b.name.localeCompare(a.name));
+                }
+            } catch (e) {
+                console.log('GitHub API failed, using fallback');
+                allFiles = FALLBACK_FILES.map(f => ({
+                    ...f,
+                    url: `https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/master/${REPORTS_PATH}/${f.name}`
+                }));
+            }
+            
+            renderFiles();
+        }
+        
+        function renderFiles() {
+            const fileList = document.getElementById('fileList');
+            const filtered = currentFilter === 'all' 
+                ? allFiles 
+                : allFiles.filter(f => f.type === currentFilter);
+            
+            if (filtered.length === 0) {
+                fileList.innerHTML = '<div class="loading">No reports found</div>';
+                return;
+            }
+            
+            fileList.innerHTML = filtered.map(f => `
+                <div class="file-item" onclick="loadFile('${f.url}', '${f.name}')">
+                    <h3>${formatTitle(f.name)}</h3>
+                    <div class="meta">
+                        <span class="type type-${f.type}">${f.type}</span>
+                        ${formatDate(f.name)}
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        async function loadFile(url, filename) {
+            document.getElementById('list').style.display = 'none';
+            document.getElementById('content').style.display = 'block';
+            document.getElementById('contentTitle').textContent = formatTitle(filename);
+            document.getElementById('contentMeta').textContent = formatDate(filename) || 'Research Report';
+            document.getElementById('markdownContent').innerHTML = '<div class="loading">Loading...</div>';
+            
+            try {
+                const res = await fetch(url);
+                const text = await res.text();
+                document.getElementById('markdownContent').innerHTML = marked.parse(text);
+            } catch (e) {
+                document.getElementById('markdownContent').innerHTML = '<p>Failed to load file</p>';
+            }
+            
+            window.scrollTo(0, 0);
+        }
+        
+        function showList() {
+            document.getElementById('list').style.display = 'block';
+            document.getElementById('content').style.display = 'none';
+        }
+        
+        // Category filter buttons
+        document.querySelectorAll('.category-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentFilter = btn.dataset.filter;
+                renderFiles();
+            });
+        });
+        
+        // Handle hash navigation
+        window.addEventListener('hashchange', () => {
+            if (!location.hash || location.hash === '#') {
+                showList();
+            }
+        });
+        
+        // Initial load
+        loadFiles();
+    </script>
+</body>
+</html>
