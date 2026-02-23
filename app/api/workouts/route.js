@@ -3,12 +3,12 @@ export const dynamic = 'force-dynamic';
 const SUPABASE_URL = "https://lsqlqssigerzghlxfxjl.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxzcWxxc3NpZ2VyemdobHhmeGpsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk1NDA5NTEsImV4cCI6MjA4NTExNjk1MX0.jqoZUtW_gb8rehPteVgjmLLLlPRLYV-0fNJkpLGcf-s";
 
-// Calculate tracking 1RM: Epley formula * 0.9
+// Calculate tracking 1RM: Epley formula * 0.95 (5% conservative buffer)
 function calcTracking1RM(weight, reps) {
   if (!weight || !reps) return null;
-  if (reps === 1) return Math.round(weight * 0.9);
+  if (reps === 1) return Math.round(weight * 0.95);
   const epley = weight * (1 + reps / 30);
-  return Math.round(epley * 0.9);
+  return Math.round(epley * 0.95);
 }
 
 export async function GET() {
