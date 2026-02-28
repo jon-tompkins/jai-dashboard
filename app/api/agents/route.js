@@ -1,14 +1,17 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
-const supabase = createClient(
-  process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+function getSupabase() {
+  return createClient(
+    process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  );
+}
 
 // GET /api/agents - List all agents
 export async function GET() {
   try {
+    const supabase = getSupabase();
     const { data, error } = await supabase
       .from('agent_registry')
       .select('*')
@@ -37,6 +40,7 @@ export async function POST(request) {
     if (status) updates.status = status;
     if (last_active) updates.last_active = last_active;
 
+    const supabase = getSupabase();
     const { data, error } = await supabase
       .from('agent_registry')
       .update(updates)

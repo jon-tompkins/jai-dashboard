@@ -3,10 +3,12 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-);
+function getSupabase() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!url || !key) return null;
+  return createClient(url, key);
+}
 
 // Team colors
 const teamColors = {
@@ -174,6 +176,9 @@ export default function AgentsDashboard() {
   useEffect(() => {
     async function fetchData() {
       try {
+        const supabase = getSupabase();
+        if (!supabase) throw new Error('Supabase not configured');
+        
         // Fetch agents
         const { data: agentData, error: agentError } = await supabase
           .from('agent_registry')

@@ -1,10 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
-const supabase = createClient(
-  process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+function getSupabase() {
+  return createClient(
+    process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  );
+}
 
 // GET /api/agents/messages - Get messages for an agent
 export async function GET(request) {
@@ -15,6 +17,7 @@ export async function GET(request) {
     const unread_only = searchParams.get('unread') === 'true';
     const limit = parseInt(searchParams.get('limit') || '50');
 
+    const supabase = getSupabase();
     let query = supabase
       .from('agent_messages')
       .select('*')
@@ -46,6 +49,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'from_agent, to_agent, and content required' }, { status: 400 });
     }
 
+    const supabase = getSupabase();
     const { data, error } = await supabase
       .from('agent_messages')
       .insert({
@@ -81,6 +85,7 @@ export async function PATCH(request) {
     const body = await request.json();
     const { message_ids, to_agent } = body;
 
+    const supabase = getSupabase();
     let query = supabase
       .from('agent_messages')
       .update({ read: true });

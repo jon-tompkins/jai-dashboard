@@ -1,10 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
-const supabase = createClient(
-  process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+function getSupabase() {
+  return createClient(
+    process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  );
+}
 
 // GET /api/agents/activity - Get recent activity
 export async function GET(request) {
@@ -14,6 +16,7 @@ export async function GET(request) {
     const project = searchParams.get('project');
     const agent_id = searchParams.get('agent_id');
 
+    const supabase = getSupabase();
     let query = supabase
       .from('agent_activity')
       .select('*')
@@ -44,6 +47,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'agent_id and action required' }, { status: 400 });
     }
 
+    const supabase = getSupabase();
     const { data, error } = await supabase
       .from('agent_activity')
       .insert({
