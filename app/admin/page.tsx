@@ -35,6 +35,33 @@ async function fetchSupabase(table: string, params: string = '') {
   return res.json()
 }
 
+// Avatar component with fallback
+function AgentAvatar({ agent, size = 56, teamColor }: { agent: any, size?: number, teamColor: any }) {
+  const avatarUrl = agent?.avatar_url || (agent?.slug ? `/avatars/${agent.slug}.jpg` : null)
+  
+  if (avatarUrl) {
+    return (
+      <img 
+        src={avatarUrl} 
+        alt={agent?.name || 'Agent'} 
+        style={{
+          width: size, height: size, borderRadius: size > 48 ? '12px' : '10px',
+          objectFit: 'cover', border: `2px solid ${teamColor.border}`, flexShrink: 0
+        }} 
+      />
+    )
+  }
+  
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: size > 48 ? '12px' : '10px',
+      background: `linear-gradient(135deg, ${teamColor.border}, ${teamColor.text})`,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: size * 0.5, border: `2px solid ${teamColor.border}`, flexShrink: 0
+    }}>{agent?.emoji || '🤖'}</div>
+  )
+}
+
 // Agent Detail Modal
 function AgentModal({ agent, onClose, activity, messages }: { agent: any, onClose: () => void, activity: any[], messages: any[] }) {
   const teamColor = getTeamColor(agent.team)
@@ -58,12 +85,7 @@ function AgentModal({ agent, onClose, activity, messages }: { agent: any, onClos
           background: teamColor.bg, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'
         }}>
           <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-            <div style={{
-              width: '64px', height: '64px', borderRadius: '12px',
-              background: `linear-gradient(135deg, ${teamColor.border}, ${teamColor.text})`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '32px', border: `2px solid ${teamColor.border}`
-            }}>{agent.emoji || '🤖'}</div>
+            <AgentAvatar agent={agent} size={64} teamColor={teamColor} />
             <div>
               <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 800 }}>{agent.name}</h2>
               <div style={{ color: teamColor.text, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '1px', fontSize: '12px' }}>
@@ -321,12 +343,7 @@ export default function AdminPage() {
 
                     {/* Agent Info */}
                     <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
-                      <div style={{
-                        width: '56px', height: '56px', borderRadius: '12px',
-                        background: `linear-gradient(135deg, ${teamColor.border}, ${teamColor.text})`,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '28px', flexShrink: 0, border: `2px solid ${teamColor.border}`
-                      }}>{agent.emoji || '🤖'}</div>
+                      <AgentAvatar agent={agent} size={56} teamColor={teamColor} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <h3 style={{ margin: '0 0 4px', fontSize: '18px', fontWeight: 800 }}>{agent.name}</h3>
                         <div style={{
@@ -379,11 +396,7 @@ export default function AdminPage() {
                     padding: '16px 20px', borderBottom: i < activity.length - 1 ? '1px solid #30363d' : 'none',
                     display: 'flex', gap: '16px', alignItems: 'flex-start'
                   }}>
-                    <div style={{
-                      width: '40px', height: '40px', borderRadius: '10px',
-                      background: teamColor.bg, border: `2px solid ${teamColor.border}`,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px'
-                    }}>{agent?.emoji || '🤖'}</div>
+                    <AgentAvatar agent={agent} size={40} teamColor={teamColor} />
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 600, marginBottom: '4px' }}>
                         <span style={{ color: teamColor.text }}>{agent?.name || 'Unknown'}</span>
@@ -422,11 +435,7 @@ export default function AdminPage() {
                     padding: '16px 20px', borderBottom: i < messages.length - 1 ? '1px solid #30363d' : 'none',
                     display: 'flex', gap: '16px'
                   }}>
-                    <div style={{
-                      width: '40px', height: '40px', borderRadius: '10px',
-                      background: teamColor.bg, border: `2px solid ${teamColor.border}`,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px'
-                    }}>{from?.emoji || '🤖'}</div>
+                    <AgentAvatar agent={from} size={40} teamColor={teamColor} />
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap' }}>
                         <span style={{ fontWeight: 700, color: teamColor.text }}>{from?.name || 'Unknown'}</span>
