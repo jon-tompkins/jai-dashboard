@@ -1,8 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { readdir, readFile } from 'fs/promises'
+import { readdir, readFile, writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
 
 const AGENTS_DIR = '/home/ubuntu/clawd/agents'
+
+// Save file content
+export async function POST(request: NextRequest) {
+  try {
+    const { agent, file, content } = await request.json()
+    if (!agent || !file || content === undefined) {
+      return NextResponse.json({ error: 'Missing agent, file, or content' }, { status: 400 })
+    }
+    
+    const filePath = join(AGENTS_DIR, agent, file)
+    await writeFile(filePath, content, 'utf-8')
+    return NextResponse.json({ ok: true, agent, file })
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+}
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
