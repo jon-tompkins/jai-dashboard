@@ -27,7 +27,7 @@ const ASSIGNEES = [
 ]
 const PROJECTS = ['dashboard', 'myjunto', 'clawstreet', 'ailmanack', 'trading', 'fitness']
 
-function TaskCard({ task, updateTask, deleteTask }: any) {
+function TaskCard({ task, updateTask, deleteTask, onEdit }: any) {
   const [expanded, setExpanded] = useState(false)
   const priorityColor = PRIORITY_COLORS[task.priority] || '#6b7280'
   const projectColor = PROJECT_COLORS[task.project?.toLowerCase()] || '#3b82f6'
@@ -35,10 +35,6 @@ function TaskCard({ task, updateTask, deleteTask }: any) {
 
   const moveTask = (newStatus: string) => {
     updateTask(task.id, { status: newStatus })
-  }
-
-  const reassign = (newAssignee: string) => {
-    updateTask(task.id, { assignee: newAssignee || null })
   }
 
   const statusBtns = [
@@ -71,7 +67,7 @@ function TaskCard({ task, updateTask, deleteTask }: any) {
 
       {expanded && (
         <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #262626' }} onClick={(e) => e.stopPropagation()}>
-          {task.description && <p style={{ fontSize: '12px', color: '#a3a3a3', margin: '0 0 12px' }}>{task.description}</p>}
+          {task.description && <p style={{ fontSize: '12px', color: '#a3a3a3', margin: '0 0 12px', whiteSpace: 'pre-wrap' }}>{task.description}</p>}
           
           {task.tags?.length > 0 && (
             <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: '12px' }}>
@@ -81,21 +77,7 @@ function TaskCard({ task, updateTask, deleteTask }: any) {
             </div>
           )}
 
-          {/* Assignee dropdown */}
-          <div style={{ marginBottom: '12px' }}>
-            <label style={{ fontSize: '11px', color: '#525252', display: 'block', marginBottom: '4px' }}>Assign to</label>
-            <select 
-              value={task.assignee || ''} 
-              onChange={(e) => reassign(e.target.value)}
-              style={{ padding: '6px 10px', background: '#171717', border: '1px solid #262626', borderRadius: '4px', color: '#e5e5e5', fontSize: '12px', width: '100%' }}
-            >
-              {ASSIGNEES.map(a => (
-                <option key={a.value} value={a.value}>{a.emoji} {a.label}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Compact status buttons */}
+          {/* Status buttons */}
           <div style={{ display: 'flex', gap: '4px', alignItems: 'center', marginBottom: '8px' }}>
             <span style={{ fontSize: '11px', color: '#525252', marginRight: '4px' }}>Move:</span>
             {statusBtns.filter(s => s.id !== task.status).map(s => (
@@ -108,13 +90,23 @@ function TaskCard({ task, updateTask, deleteTask }: any) {
                 {s.icon}
               </button>
             ))}
-            <button 
-              onClick={() => deleteTask(task.id)} 
-              title="Delete"
-              style={{ padding: '4px 6px', background: '#171717', border: '1px solid #3f1d1d', borderRadius: '3px', cursor: 'pointer', fontSize: '12px', marginLeft: 'auto' }}
-            >
-              🗑
-            </button>
+            
+            <div style={{ marginLeft: 'auto', display: 'flex', gap: '4px' }}>
+              <button 
+                onClick={() => onEdit(task)} 
+                title="Edit"
+                style={{ padding: '4px 6px', background: '#171717', border: '1px solid #262626', borderRadius: '3px', cursor: 'pointer', fontSize: '12px' }}
+              >
+                ✏️
+              </button>
+              <button 
+                onClick={() => deleteTask(task.id)} 
+                title="Delete"
+                style={{ padding: '4px 6px', background: '#171717', border: '1px solid #3f1d1d', borderRadius: '3px', cursor: 'pointer', fontSize: '12px' }}
+              >
+                🗑
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -122,8 +114,15 @@ function TaskCard({ task, updateTask, deleteTask }: any) {
   )
 }
 
-function AddTaskModal({ onClose, onAdd }: { onClose: () => void, onAdd: (task: any) => void }) {
-  const [task, setTask] = useState({ title: '', description: '', assignee: '', priority: 'medium', tags: '', project: '' })
+function TaskModal({ task, onClose, onSave, isEdit }: { task?: any, onClose: () => void, onSave: (task: any) => void, isEdit?: boolean }) {
+  const [form, setForm] = useState({
+    title: task?.title || '',
+    description: task?.description || '',
+    assignee: task?.assignee || '',
+    priority: task?.priority || 'medium',
+    tags: Array.isArray(task?.tags) ? task.tags.join(', ') : '',
+    project: task?.project || ''
+  })
   const titleRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -132,22 +131,19 @@ function AddTaskModal({ onClose, onAdd }: { onClose: () => void, onAdd: (task: a
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!task.title.trim()) return
-    onAdd({
-      ...task,
-      tags: task.tags ? task.tags.split(',').map(t => t.trim()).filter(Boolean) : []
+    if (!form.title.trim()) return
+    onSave({
+      ...(task?.id ? { id: task.id } : {}),
+      ...form,
+      tags: form.tags ? form.tags.split(',').map(t => t.trim()).filter(Boolean) : []
     })
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') onClose()
-  }
-
   return (
-    <div style={styles.modalOverlay} onClick={onClose} onKeyDown={handleKeyDown}>
+    <div style={styles.modalOverlay} onClick={onClose}>
       <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>Create Task</h2>
+          <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>{isEdit ? 'Edit Task' : 'Create Task'}</h2>
           <button onClick={onClose} style={{ ...styles.btn, padding: '4px 10px' }}>✕</button>
         </div>
 
@@ -157,8 +153,8 @@ function AddTaskModal({ onClose, onAdd }: { onClose: () => void, onAdd: (task: a
             <input 
               ref={titleRef}
               placeholder="What needs to be done?" 
-              value={task.title} 
-              onChange={(e) => setTask({...task, title: e.target.value})}
+              value={form.title} 
+              onChange={(e) => setForm({...form, title: e.target.value})}
               style={{ padding: '10px 12px', background: '#171717', border: '1px solid #262626', borderRadius: '4px', color: '#e5e5e5', fontSize: '14px', width: '100%', boxSizing: 'border-box' }} 
             />
           </div>
@@ -167,9 +163,9 @@ function AddTaskModal({ onClose, onAdd }: { onClose: () => void, onAdd: (task: a
             <label style={{ fontSize: '12px', color: '#737373', display: 'block', marginBottom: '6px' }}>Description</label>
             <textarea 
               placeholder="Details, context, links..." 
-              value={task.description} 
-              onChange={(e) => setTask({...task, description: e.target.value})}
-              style={{ padding: '10px 12px', background: '#171717', border: '1px solid #262626', borderRadius: '4px', color: '#e5e5e5', fontSize: '14px', minHeight: '80px', resize: 'vertical', width: '100%', boxSizing: 'border-box' }} 
+              value={form.description} 
+              onChange={(e) => setForm({...form, description: e.target.value})}
+              style={{ padding: '10px 12px', background: '#171717', border: '1px solid #262626', borderRadius: '4px', color: '#e5e5e5', fontSize: '14px', minHeight: '100px', resize: 'vertical', width: '100%', boxSizing: 'border-box' }} 
             />
           </div>
 
@@ -177,21 +173,19 @@ function AddTaskModal({ onClose, onAdd }: { onClose: () => void, onAdd: (task: a
             <div>
               <label style={{ fontSize: '12px', color: '#737373', display: 'block', marginBottom: '6px' }}>Project</label>
               <select 
-                value={task.project} 
-                onChange={(e) => setTask({...task, project: e.target.value})}
+                value={form.project} 
+                onChange={(e) => setForm({...form, project: e.target.value})}
                 style={{ padding: '10px 12px', background: '#171717', border: '1px solid #262626', borderRadius: '4px', color: '#e5e5e5', width: '100%' }}
               >
                 <option value="">None</option>
-                {PROJECTS.map(p => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
+                {PROJECTS.map(p => <option key={p} value={p}>{p}</option>)}
               </select>
             </div>
             <div>
               <label style={{ fontSize: '12px', color: '#737373', display: 'block', marginBottom: '6px' }}>Priority</label>
               <select 
-                value={task.priority} 
-                onChange={(e) => setTask({...task, priority: e.target.value})}
+                value={form.priority} 
+                onChange={(e) => setForm({...form, priority: e.target.value})}
                 style={{ padding: '10px 12px', background: '#171717', border: '1px solid #262626', borderRadius: '4px', color: '#e5e5e5', width: '100%' }}
               >
                 <option value="low">🟢 Low</option>
@@ -206,21 +200,19 @@ function AddTaskModal({ onClose, onAdd }: { onClose: () => void, onAdd: (task: a
             <div>
               <label style={{ fontSize: '12px', color: '#737373', display: 'block', marginBottom: '6px' }}>Assignee</label>
               <select 
-                value={task.assignee} 
-                onChange={(e) => setTask({...task, assignee: e.target.value})}
+                value={form.assignee} 
+                onChange={(e) => setForm({...form, assignee: e.target.value})}
                 style={{ padding: '10px 12px', background: '#171717', border: '1px solid #262626', borderRadius: '4px', color: '#e5e5e5', width: '100%' }}
               >
-                {ASSIGNEES.map(a => (
-                  <option key={a.value} value={a.value}>{a.emoji} {a.label}</option>
-                ))}
+                {ASSIGNEES.map(a => <option key={a.value} value={a.value}>{a.emoji} {a.label}</option>)}
               </select>
             </div>
             <div>
               <label style={{ fontSize: '12px', color: '#737373', display: 'block', marginBottom: '6px' }}>Tags</label>
               <input 
                 placeholder="bug, feature, research" 
-                value={task.tags} 
-                onChange={(e) => setTask({...task, tags: e.target.value})}
+                value={form.tags} 
+                onChange={(e) => setForm({...form, tags: e.target.value})}
                 style={{ padding: '10px 12px', background: '#171717', border: '1px solid #262626', borderRadius: '4px', color: '#e5e5e5', fontSize: '14px', width: '100%', boxSizing: 'border-box' }} 
               />
             </div>
@@ -230,10 +222,10 @@ function AddTaskModal({ onClose, onAdd }: { onClose: () => void, onAdd: (task: a
             <button type="button" onClick={onClose} style={styles.btn}>Cancel</button>
             <button 
               type="submit" 
-              disabled={!task.title.trim()}
-              style={{ ...styles.btn, background: task.title.trim() ? '#166534' : '#262626', border: '1px solid #166534' }}
+              disabled={!form.title.trim()}
+              style={{ ...styles.btn, background: form.title.trim() ? '#166534' : '#262626', border: '1px solid #166534' }}
             >
-              Create Task
+              {isEdit ? 'Save Changes' : 'Create Task'}
             </button>
           </div>
         </form>
@@ -245,7 +237,7 @@ function AddTaskModal({ onClose, onAdd }: { onClose: () => void, onAdd: (task: a
 export default function KanbanPage() {
   const [kanban, setKanban] = useState<{ tasks: any[], summary: Record<string, number> }>({ tasks: [], summary: {} })
   const [loading, setLoading] = useState(true)
-  const [showModal, setShowModal] = useState(false)
+  const [modalTask, setModalTask] = useState<any>(null) // null = closed, {} = new, {id:...} = edit
   const [filterProject, setFilterProject] = useState<string>('')
   const [filterAssignee, setFilterAssignee] = useState<string>('')
 
@@ -271,22 +263,35 @@ export default function KanbanPage() {
   // Keyboard shortcut for new task
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'n' && !showModal && !['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as Element)?.tagName)) {
+      if (e.key === 'n' && !modalTask && !['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as Element)?.tagName)) {
         e.preventDefault()
-        setShowModal(true)
+        setModalTask({})
+      }
+      if (e.key === 'Escape' && modalTask) {
+        setModalTask(null)
       }
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [showModal])
+  }, [modalTask])
 
-  const addTask = async (taskData: any) => {
-    await fetch('/api/kanban', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...taskData, status: 'backlog' })
-    })
-    setShowModal(false)
+  const saveTask = async (taskData: any) => {
+    if (taskData.id) {
+      // Edit existing
+      await fetch('/api/kanban', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(taskData)
+      })
+    } else {
+      // Create new
+      await fetch('/api/kanban', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...taskData, status: 'backlog' })
+      })
+    }
+    setModalTask(null)
     fetchKanban()
   }
 
@@ -300,6 +305,7 @@ export default function KanbanPage() {
   }
 
   const deleteTask = async (id: string) => {
+    if (!confirm('Delete this task?')) return
     await fetch(`/api/kanban?id=${id}`, { method: 'DELETE' })
     fetchKanban()
   }
@@ -314,7 +320,14 @@ export default function KanbanPage() {
   return (
     <div style={styles.container}>
       {/* Modal */}
-      {showModal && <AddTaskModal onClose={() => setShowModal(false)} onAdd={addTask} />}
+      {modalTask !== null && (
+        <TaskModal 
+          task={modalTask.id ? modalTask : undefined}
+          isEdit={!!modalTask.id}
+          onClose={() => setModalTask(null)} 
+          onSave={saveTask} 
+        />
+      )}
 
       {/* Header */}
       <header style={{ borderBottom: '1px solid #262626', padding: '16px 24px' }}>
@@ -372,7 +385,7 @@ export default function KanbanPage() {
               <option value="">All Assignees</option>
               {ASSIGNEES.filter(a => a.value).map(a => <option key={a.value} value={a.value}>{a.emoji} {a.label}</option>)}
             </select>
-            <button onClick={() => setShowModal(true)} style={{ ...styles.btn, background: '#166534', padding: '6px 12px', fontSize: '12px' }}>
+            <button onClick={() => setModalTask({})} style={{ ...styles.btn, background: '#166534', padding: '6px 12px', fontSize: '12px' }}>
               + New Task
             </button>
           </div>
@@ -389,7 +402,13 @@ export default function KanbanPage() {
                   <span style={{ color: col.color }}>{tasks.length}</span>
                 </div>
                 {tasks.map(task => (
-                  <TaskCard key={task.id} task={task} updateTask={updateTask} deleteTask={deleteTask} />
+                  <TaskCard 
+                    key={task.id} 
+                    task={task} 
+                    updateTask={updateTask} 
+                    deleteTask={deleteTask}
+                    onEdit={(t: any) => setModalTask(t)}
+                  />
                 ))}
                 {tasks.length === 0 && (
                   <div style={{ padding: '24px', color: '#525252', fontSize: '12px', textAlign: 'center', border: '1px dashed #262626', borderRadius: '4px' }}>

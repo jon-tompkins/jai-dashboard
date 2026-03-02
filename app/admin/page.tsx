@@ -152,10 +152,10 @@ function AgentCard({ agent, files, onEditFile, readOnly }: { agent: any, files: 
             <span style={{ fontWeight: 600, fontSize: '15px' }}>{agent.name}</span>
             <span style={{ 
               fontSize: '10px', padding: '2px 6px', borderRadius: '3px', 
-              background: agent.status === 'active' ? '#166534' : '#262626', 
-              color: agent.status === 'active' ? '#22c55e' : '#525252' 
+              background: '#166534', 
+              color: '#22c55e' 
             }}>
-              {agent.status || 'idle'}
+              configured
             </span>
           </div>
           <div style={{ fontSize: '12px', color: teamColor, marginBottom: '4px' }}>{meta.role}</div>
