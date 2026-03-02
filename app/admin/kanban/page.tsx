@@ -391,6 +391,9 @@ export default function KanbanPage() {
             <div style={styles.btnActive}>
               📋 Kanban
             </div>
+            <Link href="/admin/crons" style={{ ...styles.btn, textDecoration: 'none', color: '#737373' }}>
+              ⏰ Crons
+            </Link>
           </div>
         </div>
       </header>
