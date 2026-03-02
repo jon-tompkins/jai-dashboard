@@ -1189,6 +1189,9 @@ export default function Dashboard() {
             {t.charAt(0).toUpperCase() + t.slice(1)}
           </div>
         ))}
+        <a href="/admin" style={{...styles.tab, textDecoration: 'none', background: '#1a1a2e', borderColor: '#4a4ae8'}} className="tab-item">
+          🎛️ Admin
+        </a>
       </div>
 
       {tab === 'portfolio' && (
