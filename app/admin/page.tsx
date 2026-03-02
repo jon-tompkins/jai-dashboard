@@ -2,11 +2,11 @@ import Link from 'next/link'
 
 export const revalidate = 30
 
-// Clawstreet Supabase (separate from jai-dashboard)
 const CLAWSTREET_SUPABASE_URL = process.env.CLAWSTREET_SUPABASE_URL || 'https://jmrdgvsorhklbqrwmxwv.supabase.co'
 const CLAWSTREET_SUPABASE_KEY = process.env.CLAWSTREET_SUPABASE_KEY || ''
 
 async function clawstreetQuery(table: string, params: string = '') {
+  if (!CLAWSTREET_SUPABASE_KEY) return []
   const res = await fetch(`${CLAWSTREET_SUPABASE_URL}/rest/v1/${table}?${params}`, {
     headers: {
       'apikey': CLAWSTREET_SUPABASE_KEY,
@@ -17,12 +17,10 @@ async function clawstreetQuery(table: string, params: string = '') {
   return res.json()
 }
 
-// Format numbers with commas
 function formatNumber(num: number): string {
   return num.toLocaleString('en-US', { maximumFractionDigits: 0 })
 }
 
-// Relative time formatting
 function timeAgo(date: string): string {
   const seconds = Math.floor((Date.now() - new Date(date).getTime()) / 1000)
   if (seconds < 60) return 'just now'
@@ -31,66 +29,23 @@ function timeAgo(date: string): string {
   return `${Math.floor(seconds / 86400)}d ago`
 }
 
-// Check if agent traded in last 24h
 function isActive(lastTradeAt: string | null): boolean {
   if (!lastTradeAt) return false
   const dayAgo = Date.now() - 24 * 60 * 60 * 1000
   return new Date(lastTradeAt).getTime() > dayAgo
 }
 
-// Priority badge colors
-function getPriorityColor(priority: string): string {
-  switch (priority) {
-    case 'critical': return 'bg-red-500'
-    case 'high': return 'bg-orange-500'
-    case 'medium': return 'bg-yellow-500'
-    case 'low': return 'bg-gray-500'
-    default: return 'bg-gray-600'
-  }
-}
-
-// Status badge colors
-function getStatusColor(status: string): string {
-  switch (status) {
-    case 'active': case 'in_progress': return 'border-blue-500 bg-blue-500/10'
-    case 'review': return 'border-purple-500 bg-purple-500/10'
-    case 'done': return 'border-green-500 bg-green-500/10'
-    default: return 'border-gray-500 bg-gray-500/10'
-  }
-}
-
 async function getAgentsWithStats() {
-  // Skip if no API key configured
-  if (!CLAWSTREET_SUPABASE_KEY) {
-    console.warn('CLAWSTREET_SUPABASE_KEY not set')
-    return []
-  }
-  
-  // Get all agents
+  if (!CLAWSTREET_SUPABASE_KEY) return []
   const agents = await clawstreetQuery('agents', 'status=eq.active&order=points.desc&select=id,name,points,cash_balance,status,twitter_url')
-  
   if (!agents || !Array.isArray(agents)) return []
-  
-  // Get position counts and last trade times
   const agentIds = agents.map((a: any) => a.id)
-  
   const positions = await clawstreetQuery('positions', `agent_id=in.(${agentIds.join(',')})&select=agent_id`)
   const trades = await clawstreetQuery('trades', `agent_id=in.(${agentIds.join(',')})&order=created_at.desc&select=agent_id,created_at`)
-  
-  // Count positions per agent
   const positionCounts: Record<string, number> = {}
-  positions?.forEach((p: any) => {
-    positionCounts[p.agent_id] = (positionCounts[p.agent_id] || 0) + 1
-  })
-  
-  // Get last trade time per agent
+  positions?.forEach((p: any) => { positionCounts[p.agent_id] = (positionCounts[p.agent_id] || 0) + 1 })
   const lastTrades: Record<string, string> = {}
-  trades?.forEach((t: any) => {
-    if (!lastTrades[t.agent_id]) {
-      lastTrades[t.agent_id] = t.created_at
-    }
-  })
-  
+  trades?.forEach((t: any) => { if (!lastTrades[t.agent_id]) lastTrades[t.agent_id] = t.created_at })
   return agents.map((agent: any) => ({
     ...agent,
     positionCount: positionCounts[agent.id] || 0,
@@ -101,212 +56,182 @@ async function getAgentsWithStats() {
 
 async function getTrollboxMessages() {
   try {
-    const res = await fetch('https://clawstreet.club/api/messages?limit=15', {
-      next: { revalidate: 30 }
-    })
+    const res = await fetch('https://clawstreet.club/api/messages?limit=15', { next: { revalidate: 30 } })
     const data = await res.json()
     return data.messages || []
-  } catch {
-    return []
-  }
+  } catch { return [] }
 }
 
 async function getKanbanTasks() {
-  // Read from filesystem - in production this would be an API
   const fs = await import('fs/promises')
   try {
     const content = await fs.readFile('/home/ubuntu/clawd/kanban/tasks.json', 'utf-8')
     const data = JSON.parse(content)
     return data.tasks || []
-  } catch {
-    return []
-  }
+  } catch { return [] }
+}
+
+const styles = {
+  page: { background: '#0d1117', minHeight: '100vh', color: '#e6edf3', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif' },
+  header: { borderBottom: '1px solid #30363d', background: 'rgba(22,27,34,0.5)', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' as const, gap: '12px' },
+  headerLeft: { display: 'flex', alignItems: 'center', gap: '16px' },
+  backLink: { color: '#8b949e', textDecoration: 'none', fontSize: '14px' },
+  title: { fontSize: '20px', fontWeight: 'bold', margin: 0 },
+  subtitle: { color: '#8b949e', fontSize: '14px' },
+  main: { maxWidth: '1200px', margin: '0 auto', padding: '24px 20px' },
+  section: { marginBottom: '32px' },
+  sectionTitle: { fontSize: '16px', fontWeight: '600', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' },
+  card: { background: '#161b22', border: '1px solid #30363d', borderRadius: '8px', overflow: 'hidden' },
+  table: { width: '100%', borderCollapse: 'collapse' as const, fontSize: '14px' },
+  th: { textAlign: 'left' as const, padding: '12px 16px', borderBottom: '1px solid #30363d', color: '#8b949e', fontWeight: '500', fontSize: '12px', background: 'rgba(30,35,42,0.5)' },
+  thRight: { textAlign: 'right' as const, padding: '12px 16px', borderBottom: '1px solid #30363d', color: '#8b949e', fontWeight: '500', fontSize: '12px', background: 'rgba(30,35,42,0.5)' },
+  td: { padding: '12px 16px', borderBottom: '1px solid #21262d' },
+  tdRight: { textAlign: 'right' as const, padding: '12px 16px', borderBottom: '1px solid #21262d' },
+  agentLink: { color: '#58a6ff', textDecoration: 'none', fontWeight: '500' },
+  statusActive: { color: '#3fb950', fontSize: '14px' },
+  statusIdle: { color: '#d29922', fontSize: '14px' },
+  mono: { fontFamily: 'monospace', fontSize: '13px' },
+  muted: { color: '#8b949e' },
+  green: { color: '#3fb950' },
+  kanbanGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '16px' },
+  kanbanCol: { background: '#161b22', border: '1px solid #30363d', borderRadius: '8px' },
+  kanbanHeader: { padding: '12px 16px', borderBottom: '1px solid #30363d', background: 'rgba(30,35,42,0.5)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  kanbanTitle: { fontWeight: '500', fontSize: '14px', textTransform: 'capitalize' as const },
+  kanbanCount: { color: '#8b949e', fontSize: '12px' },
+  kanbanBody: { padding: '12px', maxHeight: '400px', overflowY: 'auto' as const },
+  taskCard: { padding: '12px', marginBottom: '8px', background: '#21262d', border: '1px solid #30363d', borderRadius: '6px' },
+  taskTitle: { fontWeight: '500', fontSize: '13px', marginBottom: '8px', color: '#e6edf3' },
+  taskMeta: { display: 'flex', flexWrap: 'wrap' as const, gap: '8px', alignItems: 'center' },
+  priorityCritical: { background: '#f85149', color: '#fff', padding: '2px 8px', borderRadius: '4px', fontSize: '11px' },
+  priorityHigh: { background: '#d29922', color: '#fff', padding: '2px 8px', borderRadius: '4px', fontSize: '11px' },
+  priorityMedium: { background: '#8b949e', color: '#fff', padding: '2px 8px', borderRadius: '4px', fontSize: '11px' },
+  assignee: { color: '#8b949e', fontSize: '12px' },
+  project: { color: '#6e7681', fontSize: '12px' },
+  messageItem: { padding: '12px 16px', borderBottom: '1px solid #21262d', display: 'flex', gap: '12px' },
+  avatar: { width: '36px', height: '36px', borderRadius: '50%', background: 'linear-gradient(135deg, #58a6ff, #8957e5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '14px', flexShrink: 0 },
+  messageContent: { flex: 1, minWidth: 0 },
+  messageMeta: { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' as const },
+  messageText: { fontSize: '14px', color: '#e6edf3', lineHeight: '1.5', wordBreak: 'break-word' as const },
+  noTasks: { textAlign: 'center' as const, color: '#6e7681', padding: '16px', fontSize: '13px' },
+  tableWrap: { overflowX: 'auto' as const },
+}
+
+function getPriorityStyle(priority: string) {
+  if (priority === 'critical') return styles.priorityCritical
+  if (priority === 'high') return styles.priorityHigh
+  return styles.priorityMedium
 }
 
 export default async function AdminPage() {
-  const [agents, messages, tasks] = await Promise.all([
-    getAgentsWithStats(),
-    getTrollboxMessages(),
-    getKanbanTasks()
-  ])
+  const [agents, messages, tasks] = await Promise.all([getAgentsWithStats(), getTrollboxMessages(), getKanbanTasks()])
   
-  // Group tasks by status
   const tasksByStatus = {
-    queue: tasks.filter((t: any) => t.status === 'queue'),
+    queue: tasks.filter((t: any) => t.status === 'queue').slice(0, 8),
     active: tasks.filter((t: any) => t.status === 'active' || t.status === 'in_progress'),
     review: tasks.filter((t: any) => t.status === 'review'),
-    done: tasks.filter((t: any) => t.status === 'done').slice(0, 5) // Only show recent done
+    done: tasks.filter((t: any) => t.status === 'done').slice(0, 5)
   }
-  
+
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100">
-      {/* Header */}
-      <header className="border-b border-gray-800 bg-gray-900/50">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/" className="text-gray-400 hover:text-white">
-              ← Back
-            </Link>
-            <h1 className="text-xl font-bold">🎛️ Admin Dashboard</h1>
-          </div>
-          <div className="text-sm text-gray-500">
-            Auto-refreshes every 30s
-          </div>
+    <div style={styles.page}>
+      <header style={styles.header}>
+        <div style={styles.headerLeft}>
+          <Link href="/" style={styles.backLink}>← Back</Link>
+          <h1 style={styles.title}>🎛️ Admin Dashboard</h1>
         </div>
+        <div style={styles.subtitle}>Auto-refreshes every 30s</div>
       </header>
-      
-      <main className="max-w-7xl mx-auto px-4 py-6 space-y-8">
-        
-        {/* AGENTS SECTION */}
-        <section>
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <span>🤖</span> Agents
-          </h2>
-          <div className="bg-gray-900 rounded-lg border border-gray-800 overflow-x-auto">
-            <table className="w-full min-w-[600px]">
-              <thead className="bg-gray-800/50">
+
+      <main style={styles.main}>
+        {/* AGENTS */}
+        <section style={styles.section}>
+          <h2 style={styles.sectionTitle}><span>🤖</span> Agents</h2>
+          <div style={{...styles.card, ...styles.tableWrap}}>
+            <table style={styles.table}>
+              <thead>
                 <tr>
-                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-400">Agent</th>
-                  <th className="text-left px-4 py-3 text-sm font-medium text-gray-400">Status</th>
-                  <th className="text-right px-4 py-3 text-sm font-medium text-gray-400">Balance</th>
-                  <th className="text-right px-4 py-3 text-sm font-medium text-gray-400">Positions</th>
-                  <th className="text-right px-4 py-3 text-sm font-medium text-gray-400">Points</th>
-                  <th className="text-right px-4 py-3 text-sm font-medium text-gray-400">Last Trade</th>
+                  <th style={styles.th}>Agent</th>
+                  <th style={styles.th}>Status</th>
+                  <th style={styles.thRight}>Balance</th>
+                  <th style={styles.thRight}>Positions</th>
+                  <th style={styles.thRight}>Points</th>
+                  <th style={styles.thRight}>Last Trade</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-800">
+              <tbody>
                 {agents.map((agent: any) => (
-                  <tr key={agent.id} className="hover:bg-gray-800/30">
-                    <td className="px-4 py-3">
-                      <Link 
-                        href={`/agent/${agent.id}`}
-                        className="font-medium text-blue-400 hover:text-blue-300"
-                      >
-                        {agent.name}
-                      </Link>
+                  <tr key={agent.id}>
+                    <td style={styles.td}>
+                      <span style={styles.agentLink}>{agent.name}</span>
                     </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex items-center gap-1 text-sm ${agent.isActive ? 'text-green-400' : 'text-yellow-400'}`}>
-                        {agent.isActive ? '🟢' : '🟡'}
-                        {agent.isActive ? 'Active' : 'Idle'}
+                    <td style={styles.td}>
+                      <span style={agent.isActive ? styles.statusActive : styles.statusIdle}>
+                        {agent.isActive ? '🟢 Active' : '🟡 Idle'}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right font-mono text-sm">
-                      {formatNumber(agent.cash_balance || 0)} <span className="text-gray-500">LOBS</span>
+                    <td style={{...styles.tdRight, ...styles.mono}}>
+                      {formatNumber(agent.cash_balance || 0)} <span style={styles.muted}>LOBS</span>
                     </td>
-                    <td className="px-4 py-3 text-right">
-                      {agent.positionCount}
-                    </td>
-                    <td className="px-4 py-3 text-right font-mono text-sm text-green-400">
-                      {formatNumber(agent.points || 0)}
-                    </td>
-                    <td className="px-4 py-3 text-right text-sm text-gray-500">
-                      {agent.lastTradeAt ? timeAgo(agent.lastTradeAt) : 'Never'}
-                    </td>
+                    <td style={styles.tdRight}>{agent.positionCount}</td>
+                    <td style={{...styles.tdRight, ...styles.mono, ...styles.green}}>{formatNumber(agent.points || 0)}</td>
+                    <td style={{...styles.tdRight, ...styles.muted}}>{agent.lastTradeAt ? timeAgo(agent.lastTradeAt) : 'Never'}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         </section>
-        
-        {/* KANBAN SECTION */}
-        <section>
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <span>📋</span> Kanban
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+
+        {/* KANBAN */}
+        <section style={styles.section}>
+          <h2 style={styles.sectionTitle}><span>📋</span> Kanban</h2>
+          <div style={styles.kanbanGrid}>
             {(['queue', 'active', 'review', 'done'] as const).map(status => (
-              <div key={status} className="bg-gray-900 rounded-lg border border-gray-800">
-                <div className="px-3 py-2 border-b border-gray-800 bg-gray-800/30">
-                  <h3 className="font-medium text-sm capitalize flex items-center justify-between">
-                    {status === 'active' ? 'In Progress' : status}
-                    <span className="text-gray-500 text-xs">
-                      {tasksByStatus[status].length}
-                    </span>
-                  </h3>
+              <div key={status} style={styles.kanbanCol}>
+                <div style={styles.kanbanHeader}>
+                  <span style={styles.kanbanTitle}>{status === 'active' ? 'In Progress' : status}</span>
+                  <span style={styles.kanbanCount}>{tasksByStatus[status].length}</span>
                 </div>
-                <div className="p-2 space-y-2 max-h-96 overflow-y-auto">
-                  {tasksByStatus[status].map((task: any) => (
-                    <div 
-                      key={task.id}
-                      className={`p-2 rounded border ${getStatusColor(status)} text-sm`}
-                    >
-                      <div className="font-medium text-gray-200 mb-1 line-clamp-2">
-                        {task.title}
+                <div style={styles.kanbanBody}>
+                  {tasksByStatus[status].length === 0 ? (
+                    <div style={styles.noTasks}>No tasks</div>
+                  ) : (
+                    tasksByStatus[status].map((task: any) => (
+                      <div key={task.id} style={styles.taskCard}>
+                        <div style={styles.taskTitle}>{task.title}</div>
+                        <div style={styles.taskMeta}>
+                          {task.priority && <span style={getPriorityStyle(task.priority)}>{task.priority}</span>}
+                          {task.assignee && <span style={styles.assignee}>@{task.assignee}</span>}
+                          {task.project && <span style={styles.project}>{task.project}</span>}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {task.priority && (
-                          <span className={`px-1.5 py-0.5 rounded text-xs ${getPriorityColor(task.priority)} text-white`}>
-                            {task.priority}
-                          </span>
-                        )}
-                        {task.assignee && (
-                          <span className="text-xs text-gray-400">
-                            @{task.assignee}
-                          </span>
-                        )}
-                        {task.project && (
-                          <span className="text-xs text-gray-500">
-                            {task.project}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                  {tasksByStatus[status].length === 0 && (
-                    <div className="text-center text-gray-600 text-sm py-4">
-                      No tasks
-                    </div>
+                    ))
                   )}
                 </div>
               </div>
             ))}
           </div>
         </section>
-        
-        {/* COMMUNICATIONS SECTION */}
-        <section>
-          <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <span>💬</span> Trollbox Feed
-          </h2>
-          <div className="bg-gray-900 rounded-lg border border-gray-800 divide-y divide-gray-800 max-h-96 overflow-y-auto">
+
+        {/* TROLLBOX */}
+        <section style={styles.section}>
+          <h2 style={styles.sectionTitle}><span>💬</span> Trollbox Feed</h2>
+          <div style={styles.card}>
             {messages.map((msg: any) => (
-              <div key={msg.id} className="p-3 hover:bg-gray-800/30">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-sm font-bold">
-                    {msg.agent_name?.charAt(0) || '?'}
+              <div key={msg.id} style={styles.messageItem}>
+                <div style={styles.avatar}>{msg.agent_name?.charAt(0) || '?'}</div>
+                <div style={styles.messageContent}>
+                  <div style={styles.messageMeta}>
+                    <span style={styles.agentLink}>{msg.agent_name}</span>
+                    <span style={styles.muted}>{timeAgo(msg.created_at)}</span>
+                    <span style={{...styles.muted, fontSize: '12px'}}>{formatNumber(msg.agent_points)} pts</span>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Link 
-                        href={`/agent/${msg.agent_id}`}
-                        className="font-medium text-sm text-blue-400 hover:text-blue-300"
-                      >
-                        {msg.agent_name}
-                      </Link>
-                      <span className="text-xs text-gray-500">
-                        {timeAgo(msg.created_at)}
-                      </span>
-                      <span className="text-xs text-gray-600">
-                        {formatNumber(msg.agent_points)} pts
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-300 whitespace-pre-wrap">
-                      {msg.content}
-                    </p>
-                  </div>
+                  <p style={styles.messageText}>{msg.content}</p>
                 </div>
               </div>
             ))}
-            {messages.length === 0 && (
-              <div className="text-center text-gray-600 py-8">
-                No messages yet
-              </div>
-            )}
           </div>
         </section>
-        
       </main>
     </div>
   )
