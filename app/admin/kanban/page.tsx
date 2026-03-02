@@ -104,7 +104,7 @@ export default function KanbanPage() {
 
   const updateTask = async (id: string, updates: any) => {
     await fetch('/api/kanban', {
-      method: 'PUT',
+      method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, ...updates })
     })

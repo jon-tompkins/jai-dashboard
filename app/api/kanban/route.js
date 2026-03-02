@@ -54,6 +54,8 @@ export async function POST(request) {
     status: body.status || 'backlog',
     assignee: body.assignee || null,
     priority: body.priority || 'medium',
+    tags: body.tags || [],
+    project: body.project || null,
     result: body.result || null,
     session_key: body.sessionKey || body.session_key || null,
   };
