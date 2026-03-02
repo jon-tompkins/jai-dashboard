@@ -197,6 +197,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true)
   const [editingFile, setEditingFile] = useState<{ agent: string, file: string } | null>(null)
   const [source, setSource] = useState<string>('')
+  const [readOnly, setReadOnly] = useState(false)
 
   const loadData = async () => {
     setLoading(true)
@@ -204,6 +205,7 @@ export default function AdminPage() {
       const filesData = await fetch('/api/agents/files').then(r => r.json())
       setLocalFiles(filesData.agents || [])
       setSource(filesData.source || 'unknown')
+      setReadOnly(filesData.readOnly || false)
     } catch (e) { console.error(e) }
     setLoading(false)
   }
@@ -226,8 +228,6 @@ export default function AdminPage() {
     else teams['Other'].push(agent)
   })
 
-  const readOnly = source === 'github'
-
   return (
     <div style={styles.container}>
       {/* Header */}
@@ -239,7 +239,7 @@ export default function AdminPage() {
               <h1 style={{ margin: 0, fontSize: '20px', fontWeight: 600 }}>🤖 Agent Portal</h1>
               {source && (
                 <span style={{ fontSize: '11px', color: '#525252', background: '#171717', padding: '4px 8px', borderRadius: '4px' }}>
-                  {source === 'github' ? '📡 GitHub (read-only)' : '💾 Local'}
+                  {source === 'github' ? (readOnly ? '📡 GitHub (read-only)' : '📡 GitHub') : '💾 Local'}
                 </span>
               )}
             </div>
