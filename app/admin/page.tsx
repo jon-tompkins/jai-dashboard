@@ -14,22 +14,23 @@ const styles = {
 const TEAM_COLORS: Record<string, string> = {
   coordinator: '#8b5cf6',
   clawstreet: '#10b981',
-  trading: '#f59e0b', 
+  ailmanack: '#f59e0b', 
+  myjunto: '#3b82f6',
   other: '#6b7280'
 }
 
 // Agent metadata with avatars
 const AGENT_META: Record<string, { emoji: string, role: string, team: string, avatar?: string, description?: string }> = {
   'jai': { emoji: '⚡', role: 'AI Coordinator', team: 'coordinator', avatar: '/avatars/jai.jpg', description: 'Primary assistant, task coordinator, spawns sub-agents' },
+  'jai-twitter': { emoji: '🐦', role: 'Twitter Bot', team: 'coordinator', description: 'Automated Twitter presence' },
   'terry': { emoji: '🦎', role: 'Clawstreet Lead', team: 'clawstreet', avatar: '/avatars/terry.jpg', description: 'Clawstreet operations and strategy' },
   'sport': { emoji: '🏀', role: 'Sports & Entertainment', team: 'clawstreet', avatar: '/avatars/sport.jpg', description: 'Sports betting and entertainment plays' },
+  'quai': { emoji: '🤖', role: 'Quai Agent', team: 'clawstreet', avatar: '/avatars/quai.jpg', description: 'Quai network specialist' },
   'mark': { emoji: '📣', role: 'Marketing', team: 'clawstreet', avatar: '/avatars/mark.jpg', description: 'Clawstreet social, Discord, community' },
-  'scout': { emoji: '🔭', role: 'Research Scout', team: 'trading', avatar: '/avatars/scout.jpg', description: 'Finds alpha, monitors watchlists, surfaces opportunities' },
-  'jeb': { emoji: '📊', role: 'Analyst', team: 'trading', avatar: '/avatars/jeb.jpg', description: 'Deep dives, earnings analysis, investor frameworks' },
-  'ant': { emoji: '📈', role: 'Technical Analyst', team: 'trading', avatar: '/avatars/ant.jpg', description: 'Price action, momentum, chart patterns' },
+  'scout': { emoji: '🔭', role: 'Research Scout', team: 'ailmanack', avatar: '/avatars/scout.jpg', description: 'Finds alpha, monitors watchlists, surfaces opportunities' },
+  'jeb': { emoji: '📊', role: 'Analyst', team: 'ailmanack', avatar: '/avatars/jeb.jpg', description: 'Deep dives, earnings analysis, investor frameworks' },
+  'ant': { emoji: '📈', role: 'Technical Analyst', team: 'ailmanack', avatar: '/avatars/ant.jpg', description: 'Price action, momentum, chart patterns' },
   'builder': { emoji: '🔨', role: 'Developer', team: 'other', avatar: '/avatars/builder.jpg', description: 'Code, dashboards, infrastructure' },
-  'quai': { emoji: '🤖', role: 'Quai Agent', team: 'other', avatar: '/avatars/quai.jpg', description: 'Quai network specialist' },
-  'jai-twitter': { emoji: '🐦', role: 'Twitter Bot', team: 'other', description: 'Automated Twitter presence' },
 }
 
 // File Editor Modal
@@ -231,7 +232,8 @@ export default function AdminPage() {
   const teams: Record<string, any[]> = {
     'Coordinator': [],
     'Clawstreet': [],
-    'Trading Team': [],
+    'Ailmanack': [],
+    'myJunto': [],
     'Other': []
   }
 
@@ -239,7 +241,8 @@ export default function AdminPage() {
     const meta = AGENT_META[agent.name.toLowerCase()]
     if (meta?.team === 'coordinator') teams['Coordinator'].push(agent)
     else if (meta?.team === 'clawstreet') teams['Clawstreet'].push(agent)
-    else if (meta?.team === 'trading') teams['Trading Team'].push(agent)
+    else if (meta?.team === 'ailmanack') teams['Ailmanack'].push(agent)
+    else if (meta?.team === 'myjunto') teams['myJunto'].push(agent)
     else teams['Other'].push(agent)
   })
 
