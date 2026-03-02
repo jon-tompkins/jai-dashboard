@@ -7,13 +7,14 @@ const styles = {
   card: { background: '#0d0d0d', border: '1px solid #262626', borderRadius: '4px', padding: '16px' },
   cardTitle: { fontSize: '12px', color: '#737373', textTransform: 'uppercase' as const, letterSpacing: '0.5px', marginBottom: '12px' },
   btn: { padding: '8px 14px', background: '#171717', border: '1px solid #262626', borderRadius: '4px', color: '#e5e5e5', cursor: 'pointer', fontSize: '13px' },
+  btnActive: { padding: '8px 14px', background: '#171717', border: '1px solid #404040', borderRadius: '4px', color: '#fff', cursor: 'pointer', fontSize: '13px' },
   tag: { display: 'inline-block', padding: '2px 8px', borderRadius: '3px', fontSize: '11px', marginRight: '4px' },
   modalOverlay: { position: 'fixed' as const, top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
   modal: { background: '#0d0d0d', border: '1px solid #404040', borderRadius: '8px', padding: '24px', width: '100%', maxWidth: '500px', maxHeight: '90vh', overflow: 'auto' },
 }
 
 const PRIORITY_COLORS: Record<string, string> = { critical: '#dc2626', high: '#f59e0b', medium: '#3b82f6', low: '#6b7280' }
-const PROJECT_COLORS: Record<string, string> = { dashboard: '#8b5cf6', myjunto: '#ec4899', clawstreet: '#10b981', trading: '#f59e0b', fitness: '#06b6d4' }
+const PROJECT_COLORS: Record<string, string> = { dashboard: '#8b5cf6', myjunto: '#ec4899', clawstreet: '#10b981', trading: '#f59e0b', fitness: '#06b6d4', ailmanack: '#f59e0b' }
 const ASSIGNEES = [
   { value: '', label: 'Unassigned', emoji: '—' },
   { value: 'scout', label: 'Scout', emoji: '🔭' },
@@ -24,7 +25,7 @@ const ASSIGNEES = [
   { value: 'jon', label: 'Jon', emoji: '👤' },
   { value: 'jai', label: 'Jai', emoji: '⚡' },
 ]
-const PROJECTS = ['dashboard', 'myjunto', 'clawstreet', 'trading', 'fitness']
+const PROJECTS = ['dashboard', 'myjunto', 'clawstreet', 'ailmanack', 'trading', 'fitness']
 
 function TaskCard({ task, updateTask, deleteTask }: any) {
   const [expanded, setExpanded] = useState(false)
@@ -320,51 +321,29 @@ export default function KanbanPage() {
         <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <h1 style={{ margin: 0, fontSize: '20px', fontWeight: 600 }}>📋 Kanban</h1>
+              <Link href="/" style={{ color: '#525252', textDecoration: 'none', fontSize: '13px' }}>← Dashboard</Link>
+              <h1 style={{ margin: 0, fontSize: '20px', fontWeight: 600 }}>🤖 Agent Portal</h1>
             </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button onClick={() => setShowModal(true)} style={{ ...styles.btn, background: '#166534' }}>
-                New Task <span style={{ opacity: 0.5, marginLeft: '6px' }}>N</span>
-              </button>
-              <button onClick={fetchKanban} disabled={loading} style={styles.btn}>
-                {loading ? '...' : '↻'}
-              </button>
-            </div>
+            <button onClick={fetchKanban} disabled={loading} style={{ ...styles.btn, background: loading ? '#171717' : '#166534' }}>
+              {loading ? '...' : '↻ Refresh'}
+            </button>
           </div>
 
-          {/* Filters */}
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+          {/* Tabs */}
+          <div style={{ display: 'flex', gap: '8px' }}>
             <Link href="/admin" style={{ ...styles.btn, textDecoration: 'none', color: '#737373' }}>
               🤖 Agents
             </Link>
-            <div style={{ ...styles.btn, background: '#171717', border: '1px solid #404040', color: '#e5e5e5' }}>
+            <div style={styles.btnActive}>
               📋 Kanban
-            </div>
-            <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
-              <select 
-                value={filterProject} 
-                onChange={(e) => setFilterProject(e.target.value)}
-                style={{ padding: '6px 10px', background: '#171717', border: '1px solid #262626', borderRadius: '4px', color: '#e5e5e5', fontSize: '12px' }}
-              >
-                <option value="">All Projects</option>
-                {PROJECTS.map(p => <option key={p} value={p}>{p}</option>)}
-              </select>
-              <select 
-                value={filterAssignee} 
-                onChange={(e) => setFilterAssignee(e.target.value)}
-                style={{ padding: '6px 10px', background: '#171717', border: '1px solid #262626', borderRadius: '4px', color: '#e5e5e5', fontSize: '12px' }}
-              >
-                <option value="">All Assignees</option>
-                {ASSIGNEES.filter(a => a.value).map(a => <option key={a.value} value={a.value}>{a.emoji} {a.label}</option>)}
-              </select>
             </div>
           </div>
         </div>
       </header>
 
       <main style={{ maxWidth: '1400px', margin: '0 auto', padding: '24px' }}>
-        {/* Summary */}
-        <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', flexWrap: 'wrap' }}>
+        {/* Summary row with controls */}
+        <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', flexWrap: 'wrap', alignItems: 'center' }}>
           {columns.map(col => {
             const count = filteredTasks.filter(t => t.status === col.id).length
             return (
@@ -374,6 +353,29 @@ export default function KanbanPage() {
               </div>
             )
           })}
+          
+          {/* Controls on the right */}
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <select 
+              value={filterProject} 
+              onChange={(e) => setFilterProject(e.target.value)}
+              style={{ padding: '6px 10px', background: '#171717', border: '1px solid #262626', borderRadius: '4px', color: '#e5e5e5', fontSize: '12px' }}
+            >
+              <option value="">All Projects</option>
+              {PROJECTS.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+            <select 
+              value={filterAssignee} 
+              onChange={(e) => setFilterAssignee(e.target.value)}
+              style={{ padding: '6px 10px', background: '#171717', border: '1px solid #262626', borderRadius: '4px', color: '#e5e5e5', fontSize: '12px' }}
+            >
+              <option value="">All Assignees</option>
+              {ASSIGNEES.filter(a => a.value).map(a => <option key={a.value} value={a.value}>{a.emoji} {a.label}</option>)}
+            </select>
+            <button onClick={() => setShowModal(true)} style={{ ...styles.btn, background: '#166534', padding: '6px 12px', fontSize: '12px' }}>
+              + New Task
+            </button>
+          </div>
         </div>
 
         {/* Columns */}

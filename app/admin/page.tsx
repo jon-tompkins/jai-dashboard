@@ -261,14 +261,19 @@ export default function AdminPage() {
                 </span>
               )}
             </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <Link href="/admin/kanban" style={{ ...styles.btn, textDecoration: 'none' }}>
-                📋 Kanban
-              </Link>
-              <button onClick={loadData} disabled={loading} style={{ ...styles.btn, background: loading ? '#171717' : '#166534' }}>
-                {loading ? '...' : '↻'}
-              </button>
+            <button onClick={loadData} disabled={loading} style={{ ...styles.btn, background: loading ? '#171717' : '#166534' }}>
+              {loading ? '...' : '↻ Refresh'}
+            </button>
+          </div>
+
+          {/* Tabs */}
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={styles.btnActive}>
+              🤖 Agents
             </div>
+            <Link href="/admin/kanban" style={{ ...styles.btn, textDecoration: 'none', color: '#737373' }}>
+              📋 Kanban
+            </Link>
           </div>
         </div>
       </header>
