@@ -4,8 +4,8 @@ import { join } from 'path'
 import { constants } from 'fs'
 
 const AGENTS_DIR = '/home/ubuntu/clawd/agents'
-const GITHUB_REPO = 'jon-tompkins/clawd'
-const GITHUB_BRANCH = 'main'
+const GITHUB_REPO = 'jon-tompkins/jai-dashboard'
+const GITHUB_BRANCH = 'master'
 
 // Check if running locally (has filesystem access)
 async function agentsDirExists(): Promise<boolean> {

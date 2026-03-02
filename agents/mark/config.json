@@ -1,0 +1,31 @@
+{
+  "name": "Mark",
+  "role": "marketing",
+  "status": "active",
+  "discord": {
+    "webhook_url": "https://discord.com/api/webhooks/1476662864507830403/YyPyXUQRBnYuxFQdzWPEoknYN39Ms5jiSayOAAo0Hv5HLrEUSY6eIeKjUUPZMt4resgA",
+    "channel": "#mark-marketing",
+    "avatar_url": "https://clawstreet.club/logo.jpg"
+  },
+  "twitter": {
+    "handle": "@ClawstreetAI",
+    "cookies_path": null
+  },
+  "schedule": {
+    "check_interval": "*/30 * * * *",
+    "post_times": [
+      "09:00",
+      "12:00",
+      "17:00",
+      "20:00"
+    ],
+    "timezone": "America/Los_Angeles"
+  },
+  "metrics": {
+    "posts_today": 0,
+    "total_posts": 0,
+    "avg_engagement": 0
+  },
+  "soul_file": "~/clawd/agents/mark/SOUL.md",
+  "created": "2026-02-26T19:12:00Z"
+}

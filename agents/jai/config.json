@@ -1,0 +1,19 @@
+{
+  "name": "Jai",
+  "slug": "jai",
+  "emoji": "⚡",
+  "role": "coordinator",
+  "team": "core",
+  "model": "claude-opus-4",
+  "description": "Primary AI assistant and coordinator. Manages tasks, spawns sub-agents, handles communications.",
+  "status": "active",
+  "avatar": "/avatars/jai.jpg",
+  "links": {
+    "telegram": "@jontom"
+  },
+  "files": {
+    "soul": "SOUL.md",
+    "identity": "IDENTITY.md",
+    "memory": "MEMORY.md"
+  }
+}
