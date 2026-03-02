@@ -13,20 +13,23 @@ const styles = {
 
 const TEAM_COLORS: Record<string, string> = {
   coordinator: '#8b5cf6',
-  trading: '#f59e0b', 
-  marketing: '#22c55e',
   clawstreet: '#10b981',
+  trading: '#f59e0b', 
   other: '#6b7280'
 }
 
 // Agent metadata with avatars
 const AGENT_META: Record<string, { emoji: string, role: string, team: string, avatar?: string, description?: string }> = {
-  'jai': { emoji: '⚡', role: 'AI Coordinator', team: 'coordinator', description: 'Primary assistant, task coordinator, spawns sub-agents' },
-  'scout': { emoji: '🔭', role: 'Research Scout', team: 'trading', description: 'Finds alpha, monitors watchlists, surfaces opportunities' },
-  'jeb': { emoji: '📊', role: 'Analyst', team: 'trading', description: 'Deep dives, earnings analysis, investor frameworks' },
-  'ant': { emoji: '📈', role: 'Technical Analyst', team: 'trading', description: 'Price action, momentum, chart patterns' },
-  'mark': { emoji: '📣', role: 'Marketing', team: 'marketing', description: 'Clawstreet social, Discord, community' },
-  'jai-twitter': { emoji: '🐦', role: 'Twitter Bot', team: 'marketing', description: 'Automated Twitter presence' },
+  'jai': { emoji: '⚡', role: 'AI Coordinator', team: 'coordinator', avatar: '/avatars/jai.jpg', description: 'Primary assistant, task coordinator, spawns sub-agents' },
+  'terry': { emoji: '🦎', role: 'Clawstreet Lead', team: 'clawstreet', avatar: '/avatars/terry.jpg', description: 'Clawstreet operations and strategy' },
+  'sport': { emoji: '🏀', role: 'Sports & Entertainment', team: 'clawstreet', avatar: '/avatars/sport.jpg', description: 'Sports betting and entertainment plays' },
+  'mark': { emoji: '📣', role: 'Marketing', team: 'clawstreet', avatar: '/avatars/mark.jpg', description: 'Clawstreet social, Discord, community' },
+  'scout': { emoji: '🔭', role: 'Research Scout', team: 'trading', avatar: '/avatars/scout.jpg', description: 'Finds alpha, monitors watchlists, surfaces opportunities' },
+  'jeb': { emoji: '📊', role: 'Analyst', team: 'trading', avatar: '/avatars/jeb.jpg', description: 'Deep dives, earnings analysis, investor frameworks' },
+  'ant': { emoji: '📈', role: 'Technical Analyst', team: 'trading', avatar: '/avatars/ant.jpg', description: 'Price action, momentum, chart patterns' },
+  'builder': { emoji: '🔨', role: 'Developer', team: 'other', avatar: '/avatars/builder.jpg', description: 'Code, dashboards, infrastructure' },
+  'quai': { emoji: '🤖', role: 'Quai Agent', team: 'other', avatar: '/avatars/quai.jpg', description: 'Quai network specialist' },
+  'jai-twitter': { emoji: '🐦', role: 'Twitter Bot', team: 'other', description: 'Automated Twitter presence' },
 }
 
 // File Editor Modal
@@ -120,15 +123,27 @@ function AgentCard({ agent, files, onEditFile, readOnly }: { agent: any, files: 
       {/* Agent header */}
       <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
         {/* Avatar */}
-        <div style={{ 
-          width: '48px', height: '48px', borderRadius: '12px', 
-          background: `linear-gradient(135deg, ${teamColor}33, ${teamColor}11)`,
-          border: `1px solid ${teamColor}44`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '24px', flexShrink: 0
-        }}>
-          {meta.emoji}
-        </div>
+        {meta.avatar ? (
+          <img 
+            src={meta.avatar} 
+            alt={agent.name}
+            style={{ 
+              width: '48px', height: '48px', borderRadius: '12px', 
+              border: `2px solid ${teamColor}`,
+              objectFit: 'cover', flexShrink: 0
+            }}
+          />
+        ) : (
+          <div style={{ 
+            width: '48px', height: '48px', borderRadius: '12px', 
+            background: `linear-gradient(135deg, ${teamColor}33, ${teamColor}11)`,
+            border: `1px solid ${teamColor}44`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '24px', flexShrink: 0
+          }}>
+            {meta.emoji}
+          </div>
+        )}
         
         {/* Info */}
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -215,16 +230,16 @@ export default function AdminPage() {
   // Group agents by team
   const teams: Record<string, any[]> = {
     'Coordinator': [],
+    'Clawstreet': [],
     'Trading Team': [],
-    'Marketing': [],
     'Other': []
   }
 
   localFiles.forEach(agent => {
     const meta = AGENT_META[agent.name.toLowerCase()]
     if (meta?.team === 'coordinator') teams['Coordinator'].push(agent)
+    else if (meta?.team === 'clawstreet') teams['Clawstreet'].push(agent)
     else if (meta?.team === 'trading') teams['Trading Team'].push(agent)
-    else if (meta?.team === 'marketing') teams['Marketing'].push(agent)
     else teams['Other'].push(agent)
   })
 
