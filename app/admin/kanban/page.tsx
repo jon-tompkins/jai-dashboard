@@ -14,7 +14,14 @@ const styles = {
 }
 
 const PRIORITY_COLORS: Record<string, string> = { critical: '#dc2626', high: '#f59e0b', medium: '#3b82f6', low: '#6b7280' }
-const PROJECT_COLORS: Record<string, string> = { dashboard: '#8b5cf6', myjunto: '#ec4899', clawstreet: '#10b981', trading: '#f59e0b', fitness: '#06b6d4', ailmanack: '#f59e0b' }
+const PROJECT_COLORS: Record<string, string> = { 
+  dashboard: '#8b5cf6', 
+  myjunto: '#ec4899', 
+  clawstreet: '#10b981', 
+  ailmanack: '#f59e0b', 
+  trading: '#06b6d4', 
+  fitness: '#14b8a6' 
+}
 const ASSIGNEES = [
   { value: '', label: 'Unassigned', emoji: '—' },
   { value: 'scout', label: 'Scout', emoji: '🔭' },
@@ -27,11 +34,20 @@ const ASSIGNEES = [
 ]
 const PROJECTS = ['dashboard', 'myjunto', 'clawstreet', 'ailmanack', 'trading', 'fitness']
 
+// Generate short task number from UUID
+function getTaskNumber(id: string): string {
+  if (!id) return '??'
+  // Take first 4 chars of UUID and convert to number
+  const num = parseInt(id.substring(0, 8), 16) % 10000
+  return `#${num.toString().padStart(4, '0')}`
+}
+
 function TaskCard({ task, updateTask, deleteTask, onEdit }: any) {
   const [expanded, setExpanded] = useState(false)
   const priorityColor = PRIORITY_COLORS[task.priority] || '#6b7280'
-  const projectColor = PROJECT_COLORS[task.project?.toLowerCase()] || '#3b82f6'
+  const projectColor = PROJECT_COLORS[task.project?.toLowerCase()] || '#404040'
   const assignee = ASSIGNEES.find(a => a.value === task.assignee) || ASSIGNEES[0]
+  const taskNum = getTaskNumber(task.id)
 
   const moveTask = (newStatus: string) => {
     updateTask(task.id, { status: newStatus })
@@ -46,18 +62,48 @@ function TaskCard({ task, updateTask, deleteTask, onEdit }: any) {
 
   return (
     <div 
-      style={{ ...styles.card, padding: '10px 12px', marginBottom: '8px', borderLeft: `3px solid ${priorityColor}`, cursor: 'pointer' }}
+      style={{ 
+        ...styles.card, 
+        padding: '10px 12px', 
+        marginBottom: '8px', 
+        borderLeft: `3px solid ${projectColor}`, 
+        cursor: 'pointer',
+        position: 'relative'
+      }}
       onClick={() => setExpanded(!expanded)}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+      {/* Priority circle top right */}
+      <div 
+        title={task.priority || 'medium'}
+        style={{ 
+          position: 'absolute', 
+          top: '8px', 
+          right: '8px', 
+          width: '10px', 
+          height: '10px', 
+          borderRadius: '50%', 
+          background: priorityColor 
+        }} 
+      />
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', paddingRight: '16px' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 500, fontSize: '13px', marginBottom: '4px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{task.title}</div>
+          {/* Task number and title */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+            <span style={{ fontSize: '11px', color: '#525252', fontFamily: 'monospace' }}>{taskNum}</span>
+            <span style={{ fontWeight: 500, fontSize: '13px', overflow: 'hidden', textOverflow: 'ellipsis' }}>{task.title}</span>
+          </div>
+          
+          {/* Project, priority text, assignee */}
           <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
             {task.project && (
               <span style={{ ...styles.tag, background: `${projectColor}22`, color: projectColor, fontWeight: 500 }}>
                 {task.project}
               </span>
             )}
+            <span style={{ ...styles.tag, background: `${priorityColor}22`, color: priorityColor, fontSize: '10px' }}>
+              {task.priority || 'medium'}
+            </span>
             <span style={{ fontSize: '11px', color: '#737373' }}>
               {assignee.emoji} {assignee.value || 'unassigned'}
             </span>
@@ -143,7 +189,9 @@ function TaskModal({ task, onClose, onSave, isEdit }: { task?: any, onClose: () 
     <div style={styles.modalOverlay} onClick={onClose}>
       <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-          <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>{isEdit ? 'Edit Task' : 'Create Task'}</h2>
+          <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>
+            {isEdit ? `Edit Task ${getTaskNumber(task?.id)}` : 'Create Task'}
+          </h2>
           <button onClick={onClose} style={{ ...styles.btn, padding: '4px 10px' }}>✕</button>
         </div>
 
@@ -237,7 +285,7 @@ function TaskModal({ task, onClose, onSave, isEdit }: { task?: any, onClose: () 
 export default function KanbanPage() {
   const [kanban, setKanban] = useState<{ tasks: any[], summary: Record<string, number> }>({ tasks: [], summary: {} })
   const [loading, setLoading] = useState(true)
-  const [modalTask, setModalTask] = useState<any>(null) // null = closed, {} = new, {id:...} = edit
+  const [modalTask, setModalTask] = useState<any>(null)
   const [filterProject, setFilterProject] = useState<string>('')
   const [filterAssignee, setFilterAssignee] = useState<string>('')
 
@@ -260,7 +308,6 @@ export default function KanbanPage() {
 
   useEffect(() => { fetchKanban() }, [])
 
-  // Keyboard shortcut for new task
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'n' && !modalTask && !['INPUT', 'TEXTAREA', 'SELECT'].includes((e.target as Element)?.tagName)) {
@@ -277,14 +324,12 @@ export default function KanbanPage() {
 
   const saveTask = async (taskData: any) => {
     if (taskData.id) {
-      // Edit existing
       await fetch('/api/kanban', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(taskData)
       })
     } else {
-      // Create new
       await fetch('/api/kanban', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -310,7 +355,6 @@ export default function KanbanPage() {
     fetchKanban()
   }
 
-  // Filter tasks
   const filteredTasks = kanban.tasks?.filter(t => {
     if (filterProject && t.project !== filterProject) return false
     if (filterAssignee && t.assignee !== filterAssignee) return false
@@ -319,7 +363,6 @@ export default function KanbanPage() {
 
   return (
     <div style={styles.container}>
-      {/* Modal */}
       {modalTask !== null && (
         <TaskModal 
           task={modalTask.id ? modalTask : undefined}
@@ -329,7 +372,6 @@ export default function KanbanPage() {
         />
       )}
 
-      {/* Header */}
       <header style={{ borderBottom: '1px solid #262626', padding: '16px 24px' }}>
         <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
@@ -342,7 +384,6 @@ export default function KanbanPage() {
             </button>
           </div>
 
-          {/* Tabs */}
           <div style={{ display: 'flex', gap: '8px' }}>
             <Link href="/admin" style={{ ...styles.btn, textDecoration: 'none', color: '#737373' }}>
               🤖 Agents
@@ -367,7 +408,6 @@ export default function KanbanPage() {
             )
           })}
           
-          {/* Controls on the right */}
           <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', alignItems: 'center' }}>
             <select 
               value={filterProject} 
@@ -389,6 +429,16 @@ export default function KanbanPage() {
               + New Task
             </button>
           </div>
+        </div>
+
+        {/* Project color legend */}
+        <div style={{ display: 'flex', gap: '12px', marginBottom: '16px', flexWrap: 'wrap' }}>
+          {Object.entries(PROJECT_COLORS).map(([project, color]) => (
+            <div key={project} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ width: '12px', height: '3px', background: color, borderRadius: '1px' }} />
+              <span style={{ fontSize: '10px', color: '#525252' }}>{project}</span>
+            </div>
+          ))}
         </div>
 
         {/* Columns */}
