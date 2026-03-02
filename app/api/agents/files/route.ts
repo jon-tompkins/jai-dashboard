@@ -1,8 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { readdir, readFile, writeFile, mkdir } from 'fs/promises'
+import { readdir, readFile, writeFile, mkdir, access } from 'fs/promises'
 import { join } from 'path'
+import { constants } from 'fs'
 
 const AGENTS_DIR = '/home/ubuntu/clawd/agents'
+
+// Check if running in Vercel (no local filesystem access)
+async function agentsDirExists(): Promise<boolean> {
+  try {
+    await access(AGENTS_DIR, constants.R_OK)
+    return true
+  } catch {
+    return false
+  }
+}
 
 // Save file content
 export async function POST(request: NextRequest) {
@@ -24,6 +35,15 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const agentName = searchParams.get('agent')
   const fileName = searchParams.get('file')
+
+  // Check if agents dir exists (won't on Vercel)
+  if (!(await agentsDirExists())) {
+    // Return empty but valid response for Vercel deployment
+    if (agentName && fileName) {
+      return NextResponse.json({ agent: agentName, file: fileName, content: '# Not available\n\nAgent files are only accessible on local deployment.' })
+    }
+    return NextResponse.json({ agents: [], note: 'Agent files not available in this environment' })
+  }
 
   try {
     // If requesting specific file content

@@ -253,10 +253,19 @@ export default function AdminPage() {
       <main style={{ maxWidth: '1400px', margin: '0 auto', padding: '24px' }}>
         {/* FILES TAB */}
         {tab === 'files' && (
-          <LocalAgentsSection 
-            localFiles={localFiles} 
-            onEditFile={(agent, file) => setEditingFile({ agent, file })}
-          />
+          localFiles.length > 0 ? (
+            <LocalAgentsSection 
+              localFiles={localFiles} 
+              onEditFile={(agent, file) => setEditingFile({ agent, file })}
+            />
+          ) : (
+            <div style={styles.card}>
+              <div style={styles.cardTitle}>Agent Files</div>
+              <p style={{ color: '#737373', fontSize: '13px', margin: 0 }}>
+                {loading ? 'Loading...' : 'Agent files are only available when running locally (not on Vercel). The filesystem isn\'t accessible in serverless deployments.'}
+              </p>
+            </div>
+          )
         )}
 
         {/* ACTIVITY TAB */}
