@@ -394,6 +394,9 @@ export default function KanbanPage() {
             <Link href="/admin/crons" style={{ ...styles.btn, textDecoration: 'none', color: '#737373' }}>
               ⏰ Crons
             </Link>
+            <Link href="/admin/files" style={{ ...styles.btn, textDecoration: 'none', color: '#737373' }}>
+              📁 Files
+            </Link>
           </div>
         </div>
       </header>

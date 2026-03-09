@@ -205,6 +205,9 @@ export default function CronsPage() {
             <div style={styles.btnActive}>
               ⏰ Crons
             </div>
+            <Link href="/admin/files" style={{ ...styles.btn, textDecoration: 'none', color: '#737373' }}>
+              📁 Files
+            </Link>
           </div>
         </div>
       </header>
