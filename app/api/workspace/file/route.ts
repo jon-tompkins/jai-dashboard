@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 
 // GitHub repos for different paths
 const GITHUB_REPOS: Record<string, string> = {
-  '': 'jon-tompkins/jai-dashboard',  // default for jai-dashboard files
-  'clawd': 'jon-tompkins/jai-dashboard',  // main workspace
+  '': 'jon-tompkins/clawd',  // default - main workspace
+  'clawd': 'jon-tompkins/clawd',  // main workspace
   'clawstreet': 'jon-tompkins/clawstreet',
   'myjunto': 'jon-tompkins/junto',
+  'jai-dashboard': 'jon-tompkins/jai-dashboard',
 }
 
 // Binary extensions we won't read
@@ -36,6 +37,9 @@ export async function GET(request: NextRequest) {
   } else if (filePath.startsWith('myjunto/')) {
     repo = GITHUB_REPOS['myjunto']
     repoPath = filePath.replace('myjunto/', '')
+  } else if (filePath.startsWith('jai-dashboard/')) {
+    repo = GITHUB_REPOS['jai-dashboard']
+    repoPath = filePath.replace('jai-dashboard/', '')
   }
   
   // Check for binary extensions

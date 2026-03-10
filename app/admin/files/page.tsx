@@ -1,7 +1,9 @@
 'use client'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import structure from './structure.json'
+// Use pre-built structure with embedded file contents
+// Run: node scripts/build-structure.js before deploying
+import structure from './structure-built.json'
 
 const styles = {
   container: { background: '#0a0a0a', minHeight: '100vh', color: '#e5e5e5', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif' },
@@ -14,6 +16,34 @@ const styles = {
   tagRef: { background: '#1e3a5f', color: '#60a5fa' },
 }
 
+// Find file content from embedded structure
+function findFileContent(structure: any, targetPath: string): string | null {
+  if (!structure) return null
+  
+  // Check if this object has the matching path
+  if (structure.path === targetPath && structure.content) {
+    return structure.content
+  }
+  
+  // Search in arrays
+  if (Array.isArray(structure)) {
+    for (const item of structure) {
+      const found = findFileContent(item, targetPath)
+      if (found) return found
+    }
+  }
+  
+  // Search in object properties
+  if (typeof structure === 'object') {
+    for (const key of Object.keys(structure)) {
+      const found = findFileContent(structure[key], targetPath)
+      if (found) return found
+    }
+  }
+  
+  return null
+}
+
 // File viewer modal
 function FileViewer({ path, onClose }: { path: string, onClose: () => void }) {
   const [content, setContent] = useState('')
@@ -21,16 +51,18 @@ function FileViewer({ path, onClose }: { path: string, onClose: () => void }) {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    // Normalize path - handle ~ and relative paths
-    const normalizedPath = path.replace(/^~\//, '').replace(/^\/home\/ubuntu\//, '')
-    fetch(`/api/workspace/file?path=${encodeURIComponent(normalizedPath)}`)
-      .then(r => r.json())
-      .then(d => {
-        if (d.error) setError(d.error)
-        else setContent(d.content || '')
-        setLoading(false)
-      })
-      .catch(e => { setError(e.message); setLoading(false) })
+    // Look up content from embedded structure
+    const embedded = findFileContent(structure, path)
+    if (embedded) {
+      if (embedded.startsWith('[Error:') || embedded === '[File too large]') {
+        setError(embedded)
+      } else {
+        setContent(embedded)
+      }
+    } else {
+      setError('File not found in embedded structure. Run: node scripts/build-structure.js')
+    }
+    setLoading(false)
   }, [path])
 
   return (
