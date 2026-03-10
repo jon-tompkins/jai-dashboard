@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import fs from 'fs'
-import path from 'path'
 
-// Max file size to read (1MB)
-const MAX_SIZE = 1024 * 1024
+// GitHub repos for different paths
+const GITHUB_REPOS: Record<string, string> = {
+  '': 'jon-tompkins/jai-dashboard',  // default for jai-dashboard files
+  'clawd': 'jon-tompkins/jai-dashboard',  // main workspace
+  'clawstreet': 'jon-tompkins/clawstreet',
+  'myjunto': 'jon-tompkins/junto',
+}
 
 // Binary extensions we won't read
 const BINARY_EXTS = new Set([
@@ -13,56 +16,62 @@ const BINARY_EXTS = new Set([
 ])
 
 export async function GET(request: NextRequest) {
-  const workspacePath = process.env.WORKSPACE_PATH || '/home/ubuntu/clawd'
-  const homePath = process.env.HOME || '/home/ubuntu'
   let filePath = request.nextUrl.searchParams.get('path')
   
   if (!filePath) {
     return NextResponse.json({ error: 'Missing path parameter' }, { status: 400 })
   }
   
-  // Handle ~ home directory and normalize path
-  filePath = filePath.replace(/^~\//, `${homePath}/`)
+  // Normalize path - remove ~/ and leading slashes
+  filePath = filePath.replace(/^~\//, '').replace(/^\//, '')
   
-  // If path is relative, resolve against workspace
-  const fullPath = path.isAbsolute(filePath) 
-    ? path.resolve(filePath)
-    : path.resolve(workspacePath, filePath)
+  // Determine which repo to fetch from
+  let repo = GITHUB_REPOS['clawd']  // default
+  let repoPath = filePath
   
-  // Security: only allow /home/ubuntu subtree
-  if (!fullPath.startsWith(homePath)) {
-    return NextResponse.json({ error: 'Invalid path' }, { status: 403 })
+  // Check if path starts with a known project
+  if (filePath.startsWith('clawstreet/')) {
+    repo = GITHUB_REPOS['clawstreet']
+    repoPath = filePath.replace('clawstreet/', '')
+  } else if (filePath.startsWith('myjunto/')) {
+    repo = GITHUB_REPOS['myjunto']
+    repoPath = filePath.replace('myjunto/', '')
   }
   
+  // Check for binary extensions
+  const ext = filePath.includes('.') ? '.' + filePath.split('.').pop()?.toLowerCase() : ''
+  if (BINARY_EXTS.has(ext)) {
+    return NextResponse.json({ error: 'Binary file cannot be displayed' }, { status: 400 })
+  }
+  
+  // Fetch from GitHub raw
+  const rawUrl = `https://raw.githubusercontent.com/${repo}/main/${repoPath}`
+  const masterUrl = `https://raw.githubusercontent.com/${repo}/master/${repoPath}`
+  
   try {
-    const stat = fs.statSync(fullPath)
-    
-    if (stat.isDirectory()) {
-      return NextResponse.json({ error: 'Cannot read directory' }, { status: 400 })
+    // Try main branch first, then master
+    let response = await fetch(rawUrl)
+    if (!response.ok) {
+      response = await fetch(masterUrl)
     }
     
-    if (stat.size > MAX_SIZE) {
+    if (!response.ok) {
       return NextResponse.json({ 
-        error: `File too large (${(stat.size / 1024 / 1024).toFixed(1)}MB > 1MB limit)` 
-      }, { status: 400 })
+        error: `File not found in GitHub (${repo}/${repoPath})`,
+        tried: [rawUrl, masterUrl]
+      }, { status: 404 })
     }
     
-    const ext = path.extname(fullPath).toLowerCase()
-    if (BINARY_EXTS.has(ext)) {
-      return NextResponse.json({ error: 'Binary file cannot be displayed' }, { status: 400 })
-    }
-    
-    const content = fs.readFileSync(fullPath, 'utf-8')
+    const content = await response.text()
     
     return NextResponse.json({ 
       content,
-      size: stat.size,
-      modified: stat.mtime.toISOString()
+      size: content.length,
+      source: 'github',
+      repo,
+      path: repoPath
     })
   } catch (e: any) {
-    if (e.code === 'ENOENT') {
-      return NextResponse.json({ error: 'File not found' }, { status: 404 })
-    }
     return NextResponse.json({ error: e.message }, { status: 500 })
   }
 }
