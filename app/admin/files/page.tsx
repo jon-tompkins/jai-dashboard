@@ -5,6 +5,9 @@ import Link from 'next/link'
 // Run: node scripts/build-structure.js before deploying
 import structure from './structure-built.json'
 
+// Simple spin animation via inline style hack
+const spinKeyframes = `@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`
+
 const styles = {
   container: { background: '#0a0a0a', minHeight: '100vh', color: '#e5e5e5', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif' },
   card: { background: '#0d0d0d', border: '1px solid #262626', borderRadius: '8px', padding: '16px' },
@@ -45,14 +48,14 @@ function findFileContent(structure: any, targetPath: string): string | null {
 }
 
 // File viewer modal
-function FileViewer({ path, onClose }: { path: string, onClose: () => void }) {
+function FileViewer({ path, onClose, structureData }: { path: string, onClose: () => void, structureData: any }) {
   const [content, setContent] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   useEffect(() => {
     // Look up content from embedded structure
-    const embedded = findFileContent(structure, path)
+    const embedded = findFileContent(structureData, path)
     if (embedded) {
       if (embedded.startsWith('[Error:') || embedded === '[File too large]') {
         setError(embedded)
@@ -248,9 +251,30 @@ function CoordinatorSection({ data, onFileClick }: { data: any, onFileClick: (pa
 
 export default function FilesPage() {
   const [viewingFile, setViewingFile] = useState<string | null>(null)
+  const [liveStructure, setLiveStructure] = useState<any>(null)
+  const [refreshing, setRefreshing] = useState(false)
+  const [lastRefresh, setLastRefresh] = useState<string | null>(null)
+
+  const data = liveStructure || structure
+
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    try {
+      const res = await fetch('/api/admin/structure')
+      if (res.ok) {
+        const fresh = await res.json()
+        setLiveStructure(fresh)
+        setLastRefresh(new Date().toLocaleTimeString())
+      }
+    } catch (e) {
+      console.error('Refresh failed:', e)
+    }
+    setRefreshing(false)
+  }
 
   return (
     <div style={styles.container}>
+      <style>{spinKeyframes}</style>
       {/* Header */}
       <header style={{ borderBottom: '1px solid #262626', padding: '16px 24px' }}>
         <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
@@ -258,6 +282,19 @@ export default function FilesPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
               <Link href="/" style={{ color: '#525252', textDecoration: 'none', fontSize: '13px' }}>← Dashboard</Link>
               <h1 style={{ margin: 0, fontSize: '20px', fontWeight: 600 }}>🗂️ Agent Structure</h1>
+              <button 
+                onClick={handleRefresh} 
+                disabled={refreshing}
+                style={{ 
+                  ...styles.btn, 
+                  opacity: refreshing ? 0.5 : 1,
+                  display: 'flex', alignItems: 'center', gap: '6px'
+                }}
+              >
+                <span style={{ display: 'inline-block', animation: refreshing ? 'spin 1s linear infinite' : 'none' }}>🔄</span>
+                {refreshing ? 'Refreshing...' : 'Refresh'}
+              </button>
+              {lastRefresh && <span style={{ fontSize: '11px', color: '#525252' }}>Updated {lastRefresh}</span>}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <span style={{ ...styles.tag, ...styles.tagLoaded }}>loaded</span>
@@ -281,14 +318,14 @@ export default function FilesPage() {
         {/* Global Layer */}
         <div style={{ marginBottom: '24px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-            <span style={{ fontSize: '20px' }}>{structure.global.icon}</span>
+            <span style={{ fontSize: '20px' }}>{data.global.icon}</span>
             <div>
-              <div style={{ fontWeight: 600, fontSize: '14px' }}>{structure.global.label}</div>
-              <div style={{ fontSize: '12px', color: '#737373' }}>{structure.global.description}</div>
+              <div style={{ fontWeight: 600, fontSize: '14px' }}>{data.global.label}</div>
+              <div style={{ fontSize: '12px', color: '#737373' }}>{data.global.description}</div>
             </div>
           </div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            {structure.global.files.map((file: any, i: number) => (
+            {data.global.files.map((file: any, i: number) => (
               <FileItem key={i} file={file} onFileClick={setViewingFile} />
             ))}
           </div>
@@ -296,14 +333,14 @@ export default function FilesPage() {
 
         {/* Coordinator */}
         <div style={{ marginBottom: '24px' }}>
-          <CoordinatorSection data={structure.coordinator} onFileClick={setViewingFile} />
+          <CoordinatorSection data={data.coordinator} onFileClick={setViewingFile} />
         </div>
 
         {/* Projects */}
         <div style={{ marginBottom: '24px' }}>
           <div style={styles.cardTitle}>Projects</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '16px' }}>
-            {structure.projects.map((project: any) => (
+            {data.projects.map((project: any) => (
               <ProjectCard key={project.id} project={project} onFileClick={setViewingFile} />
             ))}
           </div>
@@ -312,14 +349,14 @@ export default function FilesPage() {
         {/* Memory System */}
         <div style={styles.card}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-            <span style={{ fontSize: '20px' }}>{structure.memory.icon}</span>
+            <span style={{ fontSize: '20px' }}>{data.memory.icon}</span>
             <div>
-              <div style={{ fontWeight: 600, fontSize: '15px' }}>{structure.memory.label}</div>
-              <div style={{ fontSize: '12px', color: '#737373' }}>{structure.memory.description}</div>
+              <div style={{ fontWeight: 600, fontSize: '15px' }}>{data.memory.label}</div>
+              <div style={{ fontSize: '12px', color: '#737373' }}>{data.memory.description}</div>
             </div>
           </div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            {structure.memory.files.map((file: any, i: number) => (
+            {data.memory.files.map((file: any, i: number) => (
               <FileItem key={i} file={file} onFileClick={setViewingFile} />
             ))}
           </div>
@@ -328,7 +365,7 @@ export default function FilesPage() {
 
       {/* File viewer modal */}
       {viewingFile && (
-        <FileViewer path={viewingFile} onClose={() => setViewingFile(null)} />
+        <FileViewer path={viewingFile} onClose={() => setViewingFile(null)} structureData={data} />
       )}
     </div>
   )
