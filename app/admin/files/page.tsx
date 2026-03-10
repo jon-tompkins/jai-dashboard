@@ -1,59 +1,17 @@
 'use client'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import structure from './structure.json'
 
 const styles = {
   container: { background: '#0a0a0a', minHeight: '100vh', color: '#e5e5e5', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif' },
   card: { background: '#0d0d0d', border: '1px solid #262626', borderRadius: '8px', padding: '16px' },
-  cardTitle: { fontSize: '12px', color: '#737373', textTransform: 'uppercase' as const, letterSpacing: '0.5px', marginBottom: '16px', fontWeight: 500 },
+  cardTitle: { fontSize: '12px', color: '#737373', textTransform: 'uppercase' as const, letterSpacing: '0.5px', marginBottom: '12px', fontWeight: 500 },
   btn: { padding: '8px 14px', background: '#171717', border: '1px solid #262626', borderRadius: '4px', color: '#e5e5e5', cursor: 'pointer', fontSize: '13px' },
   btnActive: { padding: '8px 14px', background: '#171717', border: '1px solid #404040', borderRadius: '4px', color: '#fff', cursor: 'pointer', fontSize: '13px' },
-}
-
-// Icons for different file types
-const FILE_ICONS: Record<string, string> = {
-  '.md': '📝',
-  '.json': '📋',
-  '.js': '⚡',
-  '.ts': '💎',
-  '.tsx': '💎',
-  '.py': '🐍',
-  '.sql': '🗃️',
-  '.csv': '📊',
-  '.html': '🌐',
-  '.css': '🎨',
-  '.sh': '⚙️',
-  '.log': '📜',
-  '.env': '🔐',
-  'default': '📄',
-}
-
-// Folder icons for special directories
-const FOLDER_ICONS: Record<string, string> = {
-  '.learnings': '🎓',
-  'memory': '🧠',
-  'agents': '🤖',
-  'Agent-Reports': '📊',
-  'reviews': '📁',
-  'research': '🔬',
-  'portfolio': '💼',
-  'tools': '🛠️',
-  'docs': '📚',
-  'scripts': '⚙️',
-  'myjunto': '📱',
-  'junto-app': '📱',
-  'jai-dashboard': '📱',
-  'default': '📂',
-}
-
-function getFileIcon(name: string): string {
-  if (name.startsWith('.env')) return FILE_ICONS['.env']
-  const ext = name.includes('.') ? '.' + name.split('.').pop() : ''
-  return FILE_ICONS[ext] || FILE_ICONS['default']
-}
-
-function getFolderIcon(name: string): string {
-  return FOLDER_ICONS[name] || FOLDER_ICONS['default']
+  tag: { display: 'inline-block', padding: '2px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 600, textTransform: 'uppercase' as const },
+  tagLoaded: { background: '#166534', color: '#4ade80' },
+  tagRef: { background: '#1e3a5f', color: '#60a5fa' },
 }
 
 // File viewer modal
@@ -63,7 +21,9 @@ function FileViewer({ path, onClose }: { path: string, onClose: () => void }) {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    fetch(`/api/workspace/file?path=${encodeURIComponent(path)}`)
+    // Normalize path - handle ~ and relative paths
+    const normalizedPath = path.replace(/^~\//, '').replace(/^\/home\/ubuntu\//, '')
+    fetch(`/api/workspace/file?path=${encodeURIComponent(normalizedPath)}`)
       .then(r => r.json())
       .then(d => {
         if (d.error) setError(d.error)
@@ -77,10 +37,7 @@ function FileViewer({ path, onClose }: { path: string, onClose: () => void }) {
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' }} onClick={onClose}>
       <div style={{ ...styles.card, maxWidth: '1000px', width: '100%', height: '85vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px solid #262626', flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '16px' }}>{getFileIcon(path.split('/').pop() || '')}</span>
-            <span style={{ fontWeight: 600, fontSize: '14px', fontFamily: 'monospace' }}>{path}</span>
-          </div>
+          <span style={{ fontWeight: 600, fontSize: '14px', fontFamily: 'monospace' }}>{path}</span>
           <button onClick={onClose} style={{ ...styles.btn, padding: '8px 12px' }}>✕</button>
         </div>
         {loading ? (
@@ -102,47 +59,64 @@ function FileViewer({ path, onClose }: { path: string, onClose: () => void }) {
   )
 }
 
-// Tree node component
-function TreeNode({ item, depth, onFileClick }: { item: any, depth: number, onFileClick: (path: string) => void }) {
-  const [expanded, setExpanded] = useState(depth < 1) // Auto-expand first level
-  const isDir = item.type === 'directory'
-  const indent = depth * 20
-
+// File item component
+function FileItem({ file, onFileClick }: { file: any, onFileClick: (path: string) => void }) {
   return (
-    <div>
-      <div 
-        style={{ 
-          display: 'flex', alignItems: 'center', gap: '6px', padding: '4px 8px', marginLeft: indent,
-          cursor: 'pointer', borderRadius: '4px', fontSize: '13px',
-          background: 'transparent', transition: 'background 0.1s'
-        }}
-        onMouseEnter={e => (e.currentTarget.style.background = '#171717')}
-        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-        onClick={() => isDir ? setExpanded(!expanded) : onFileClick(item.path)}
-      >
-        {isDir && (
-          <span style={{ color: '#525252', fontSize: '10px', width: '12px' }}>
-            {expanded ? '▼' : '▶'}
-          </span>
-        )}
-        {!isDir && <span style={{ width: '12px' }} />}
-        <span>{isDir ? getFolderIcon(item.name) : getFileIcon(item.name)}</span>
-        <span style={{ color: isDir ? '#e5e5e5' : '#a3a3a3' }}>{item.name}</span>
-        {isDir && item.children && (
-          <span style={{ color: '#525252', fontSize: '11px', marginLeft: '4px' }}>
-            ({item.children.length})
-          </span>
-        )}
-        {!isDir && item.size && (
-          <span style={{ color: '#404040', fontSize: '11px', marginLeft: 'auto' }}>
-            {item.size < 1024 ? `${item.size}B` : item.size < 1024*1024 ? `${(item.size/1024).toFixed(1)}K` : `${(item.size/1024/1024).toFixed(1)}M`}
-          </span>
-        )}
+    <div
+      onClick={() => !file.isDir && onFileClick(file.path)}
+      style={{
+        display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 10px',
+        background: '#171717', borderRadius: '4px', cursor: file.isDir ? 'default' : 'pointer',
+        border: '1px solid #262626', fontSize: '13px',
+        transition: 'border-color 0.1s'
+      }}
+      onMouseEnter={e => !file.isDir && (e.currentTarget.style.borderColor = '#404040')}
+      onMouseLeave={e => (e.currentTarget.style.borderColor = '#262626')}
+    >
+      <span>{file.isDir ? '📂' : '📄'}</span>
+      <span style={{ flex: 1 }}>{file.label}</span>
+      <span style={{ ...styles.tag, ...(file.loaded ? styles.tagLoaded : styles.tagRef) }}>
+        {file.loaded ? 'loaded' : 'ref'}
+      </span>
+    </div>
+  )
+}
+
+// Section component for file groups
+function FileSection({ title, description, files, onFileClick }: { title: string, description?: string, files: any[], onFileClick: (path: string) => void }) {
+  return (
+    <div style={{ marginBottom: '12px' }}>
+      <div style={{ fontSize: '11px', color: '#737373', marginBottom: '6px', fontWeight: 500 }}>{title}</div>
+      {description && <div style={{ fontSize: '11px', color: '#525252', marginBottom: '8px' }}>{description}</div>}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+        {files.map((file: any, i: number) => (
+          <FileItem key={i} file={file} onFileClick={onFileClick} />
+        ))}
       </div>
-      {isDir && expanded && item.children && (
-        <div>
-          {item.children.map((child: any, i: number) => (
-            <TreeNode key={child.path || i} item={child} depth={depth + 1} onFileClick={onFileClick} />
+    </div>
+  )
+}
+
+// Sub-agent card
+function SubAgentCard({ agent, onFileClick }: { agent: any, onFileClick: (path: string) => void }) {
+  const [expanded, setExpanded] = useState(false)
+  
+  return (
+    <div style={{ ...styles.card, padding: '12px' }}>
+      <div 
+        onClick={() => setExpanded(!expanded)}
+        style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
+      >
+        <span style={{ fontSize: '16px' }}>{agent.icon}</span>
+        <span style={{ fontWeight: 500, fontSize: '14px' }}>{agent.label}</span>
+        <span style={{ color: '#525252', fontSize: '10px', marginLeft: 'auto' }}>
+          {expanded ? '▼' : '▶'} {agent.files?.length || 0} files
+        </span>
+      </div>
+      {expanded && agent.files && (
+        <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          {agent.files.map((file: any, i: number) => (
+            <FileItem key={i} file={file} onFileClick={onFileClick} />
           ))}
         </div>
       )}
@@ -150,118 +124,98 @@ function TreeNode({ item, depth, onFileClick }: { item: any, depth: number, onFi
   )
 }
 
-// Quick links section
-function QuickLinks({ onFileClick }: { onFileClick: (path: string) => void }) {
-  const links = [
-    { label: 'AGENTS.md', path: 'AGENTS.md', icon: '📋' },
-    { label: 'SOUL.md', path: 'SOUL.md', icon: '💜' },
-    { label: 'USER.md', path: 'USER.md', icon: '👤' },
-    { label: 'TOOLS.md', path: 'TOOLS.md', icon: '🛠️' },
-    { label: 'HEARTBEAT.md', path: 'HEARTBEAT.md', icon: '💓' },
-    { label: 'MEMORY.md', path: 'MEMORY.md', icon: '🧠' },
-    { label: 'SESSION-STATE.md', path: 'SESSION-STATE.md', icon: '🔥' },
-    { label: 'STABILITY.md', path: '.learnings/STABILITY.md', icon: '⚠️' },
-  ]
-
+// Project card
+function ProjectCard({ project, onFileClick }: { project: any, onFileClick: (path: string) => void }) {
+  const [expanded, setExpanded] = useState(false)
+  
   return (
-    <div style={styles.card}>
-      <div style={styles.cardTitle}>Quick Links</div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-        {links.map(link => (
-          <button
-            key={link.path}
-            onClick={() => onFileClick(link.path)}
-            style={{ ...styles.btn, display: 'flex', alignItems: 'center', gap: '6px' }}
-          >
-            <span>{link.icon}</span>
-            <span>{link.label}</span>
-          </button>
-        ))}
+    <div style={{ ...styles.card }}>
+      <div 
+        onClick={() => setExpanded(!expanded)}
+        style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', marginBottom: expanded ? '12px' : 0 }}
+      >
+        <span style={{ fontSize: '20px' }}>{project.icon}</span>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 600, fontSize: '15px' }}>{project.label}</div>
+          <div style={{ fontSize: '12px', color: '#737373' }}>{project.description}</div>
+        </div>
+        <span style={{ color: '#525252', fontSize: '11px' }}>
+          {expanded ? '▼' : '▶'}
+        </span>
       </div>
+      
+      {expanded && (
+        <div style={{ borderTop: '1px solid #262626', paddingTop: '12px' }}>
+          {project.files && project.files.length > 0 && (
+            <FileSection title="Project Files" files={project.files} onFileClick={onFileClick} />
+          )}
+          
+          {project.subAgents && project.subAgents.length > 0 && (
+            <div>
+              <div style={{ fontSize: '11px', color: '#737373', marginBottom: '8px', fontWeight: 500 }}>Sub-Agents</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {project.subAgents.map((agent: any) => (
+                  <SubAgentCard key={agent.id} agent={agent} onFileClick={onFileClick} />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
 
-// Stats card
-function StatsCard({ tree }: { tree: any }) {
-  const countItems = (node: any): { files: number, dirs: number } => {
-    if (!node) return { files: 0, dirs: 0 }
-    if (node.type !== 'directory') return { files: 1, dirs: 0 }
-    let files = 0, dirs = 1
-    if (node.children) {
-      node.children.forEach((child: any) => {
-        const counts = countItems(child)
-        files += counts.files
-        dirs += counts.dirs
-      })
-    }
-    return { files, dirs }
-  }
-
-  const counts = countItems(tree)
-
+// Coordinator section
+function CoordinatorSection({ data, onFileClick }: { data: any, onFileClick: (path: string) => void }) {
+  const [expanded, setExpanded] = useState(true)
+  
   return (
-    <div style={styles.card}>
-      <div style={styles.cardTitle}>Workspace Stats</div>
-      <div style={{ display: 'flex', gap: '24px' }}>
-        <div>
-          <div style={{ fontSize: '24px', fontWeight: 600 }}>{counts.dirs}</div>
-          <div style={{ fontSize: '12px', color: '#737373' }}>directories</div>
+    <div style={{ ...styles.card }}>
+      <div 
+        onClick={() => setExpanded(!expanded)}
+        style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', marginBottom: expanded ? '16px' : 0 }}
+      >
+        <span style={{ fontSize: '24px' }}>{data.icon}</span>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 600, fontSize: '16px' }}>{data.label}</div>
+          <div style={{ fontSize: '12px', color: '#737373' }}>{data.description}</div>
         </div>
-        <div>
-          <div style={{ fontSize: '24px', fontWeight: 600 }}>{counts.files}</div>
-          <div style={{ fontSize: '12px', color: '#737373' }}>files</div>
-        </div>
+        <span style={{ color: '#525252' }}>{expanded ? '▼' : '▶'}</span>
       </div>
+      
+      {expanded && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div style={{ background: '#0a0a0a', borderRadius: '6px', padding: '12px', border: '1px solid #1a3d1a' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
+              <span style={{ ...styles.tag, ...styles.tagLoaded }}>loaded at start</span>
+            </div>
+            <FileSection 
+              title={data.systemFiles.label}
+              description={data.systemFiles.description}
+              files={data.systemFiles.files}
+              onFileClick={onFileClick}
+            />
+          </div>
+          <div style={{ background: '#0a0a0a', borderRadius: '6px', padding: '12px', border: '1px solid #1e3a5f' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
+              <span style={{ ...styles.tag, ...styles.tagRef }}>referenced on demand</span>
+            </div>
+            <FileSection 
+              title={data.contextFiles.label}
+              description={data.contextFiles.description}
+              files={data.contextFiles.files}
+              onFileClick={onFileClick}
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
 export default function FilesPage() {
-  const [tree, setTree] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
   const [viewingFile, setViewingFile] = useState<string | null>(null)
-  const [search, setSearch] = useState('')
-
-  const loadTree = async () => {
-    setLoading(true)
-    setError('')
-    try {
-      const res = await fetch('/api/workspace/tree')
-      const data = await res.json()
-      if (data.error) setError(data.error)
-      else setTree(data.tree)
-    } catch (e: any) {
-      setError(e.message)
-    }
-    setLoading(false)
-  }
-
-  useEffect(() => { loadTree() }, [])
-
-  // Filter tree based on search
-  const filterTree = (node: any, query: string): any => {
-    if (!node || !query) return node
-    const q = query.toLowerCase()
-    
-    if (node.type !== 'directory') {
-      return node.name.toLowerCase().includes(q) ? node : null
-    }
-    
-    if (!node.children) return null
-    
-    const filteredChildren = node.children
-      .map((child: any) => filterTree(child, query))
-      .filter(Boolean)
-    
-    if (filteredChildren.length > 0 || node.name.toLowerCase().includes(q)) {
-      return { ...node, children: filteredChildren }
-    }
-    return null
-  }
-
-  const displayTree = search ? filterTree(tree, search) : tree
 
   return (
     <div style={styles.container}>
@@ -271,70 +225,72 @@ export default function FilesPage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
               <Link href="/" style={{ color: '#525252', textDecoration: 'none', fontSize: '13px' }}>← Dashboard</Link>
-              <h1 style={{ margin: 0, fontSize: '20px', fontWeight: 600 }}>📁 Workspace Files</h1>
-              <span style={{ fontSize: '11px', color: '#525252', background: '#171717', padding: '4px 8px', borderRadius: '4px', fontFamily: 'monospace' }}>
-                ~/clawd
-              </span>
+              <h1 style={{ margin: 0, fontSize: '20px', fontWeight: 600 }}>🗂️ Agent Structure</h1>
             </div>
-            <button onClick={loadTree} disabled={loading} style={{ ...styles.btn, background: loading ? '#171717' : '#166534' }}>
-              {loading ? '...' : '↻ Refresh'}
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <span style={{ ...styles.tag, ...styles.tagLoaded }}>loaded</span>
+              <span style={{ fontSize: '12px', color: '#737373' }}>= in system prompt</span>
+              <span style={{ ...styles.tag, ...styles.tagRef }}>ref</span>
+              <span style={{ fontSize: '12px', color: '#737373' }}>= read on demand</span>
+            </div>
           </div>
 
           {/* Tabs */}
           <div style={{ display: 'flex', gap: '8px' }}>
-            <Link href="/admin" style={{ ...styles.btn, textDecoration: 'none', color: '#737373' }}>
-              🤖 Agents
-            </Link>
-            <Link href="/admin/kanban" style={{ ...styles.btn, textDecoration: 'none', color: '#737373' }}>
-              📋 Kanban
-            </Link>
-            <Link href="/admin/crons" style={{ ...styles.btn, textDecoration: 'none', color: '#737373' }}>
-              ⏰ Crons
-            </Link>
-            <div style={styles.btnActive}>
-              📁 Files
-            </div>
+            <Link href="/admin" style={{ ...styles.btn, textDecoration: 'none', color: '#737373' }}>🤖 Agents</Link>
+            <Link href="/admin/kanban" style={{ ...styles.btn, textDecoration: 'none', color: '#737373' }}>📋 Kanban</Link>
+            <Link href="/admin/crons" style={{ ...styles.btn, textDecoration: 'none', color: '#737373' }}>⏰ Crons</Link>
+            <div style={styles.btnActive}>🗂️ Structure</div>
           </div>
         </div>
       </header>
 
       <main style={{ maxWidth: '1400px', margin: '0 auto', padding: '24px' }}>
-        {/* Quick links and stats row */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '16px', marginBottom: '24px' }}>
-          <QuickLinks onFileClick={setViewingFile} />
-          {tree && <StatsCard tree={tree} />}
-        </div>
-
-        {/* Search */}
-        <div style={{ marginBottom: '16px' }}>
-          <input
-            type="text"
-            placeholder="Search files..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            style={{
-              width: '100%', maxWidth: '400px', padding: '10px 14px',
-              background: '#0d0d0d', border: '1px solid #262626', borderRadius: '6px',
-              color: '#e5e5e5', fontSize: '14px', outline: 'none'
-            }}
-          />
-        </div>
-
-        {/* Tree view */}
-        <div style={styles.card}>
-          <div style={styles.cardTitle}>File Tree</div>
-          {loading ? (
-            <div style={{ padding: '24px', textAlign: 'center', color: '#737373' }}>Loading workspace...</div>
-          ) : error ? (
-            <div style={{ padding: '24px', textAlign: 'center', color: '#ef4444' }}>{error}</div>
-          ) : !displayTree ? (
-            <div style={{ padding: '24px', textAlign: 'center', color: '#737373' }}>No matches found</div>
-          ) : (
-            <div style={{ maxHeight: '60vh', overflow: 'auto' }}>
-              <TreeNode item={displayTree} depth={0} onFileClick={setViewingFile} />
+        {/* Global Layer */}
+        <div style={{ marginBottom: '24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+            <span style={{ fontSize: '20px' }}>{structure.global.icon}</span>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: '14px' }}>{structure.global.label}</div>
+              <div style={{ fontSize: '12px', color: '#737373' }}>{structure.global.description}</div>
             </div>
-          )}
+          </div>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {structure.global.files.map((file: any, i: number) => (
+              <FileItem key={i} file={file} onFileClick={setViewingFile} />
+            ))}
+          </div>
+        </div>
+
+        {/* Coordinator */}
+        <div style={{ marginBottom: '24px' }}>
+          <CoordinatorSection data={structure.coordinator} onFileClick={setViewingFile} />
+        </div>
+
+        {/* Projects */}
+        <div style={{ marginBottom: '24px' }}>
+          <div style={styles.cardTitle}>Projects</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '16px' }}>
+            {structure.projects.map((project: any) => (
+              <ProjectCard key={project.id} project={project} onFileClick={setViewingFile} />
+            ))}
+          </div>
+        </div>
+
+        {/* Memory System */}
+        <div style={styles.card}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+            <span style={{ fontSize: '20px' }}>{structure.memory.icon}</span>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: '15px' }}>{structure.memory.label}</div>
+              <div style={{ fontSize: '12px', color: '#737373' }}>{structure.memory.description}</div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {structure.memory.files.map((file: any, i: number) => (
+              <FileItem key={i} file={file} onFileClick={setViewingFile} />
+            ))}
+          </div>
         </div>
       </main>
 

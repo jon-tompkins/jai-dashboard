@@ -14,15 +14,23 @@ const BINARY_EXTS = new Set([
 
 export async function GET(request: NextRequest) {
   const workspacePath = process.env.WORKSPACE_PATH || '/home/ubuntu/clawd'
-  const filePath = request.nextUrl.searchParams.get('path')
+  const homePath = process.env.HOME || '/home/ubuntu'
+  let filePath = request.nextUrl.searchParams.get('path')
   
   if (!filePath) {
     return NextResponse.json({ error: 'Missing path parameter' }, { status: 400 })
   }
   
-  // Security: prevent path traversal
-  const fullPath = path.resolve(workspacePath, filePath)
-  if (!fullPath.startsWith(workspacePath)) {
+  // Handle ~ home directory and normalize path
+  filePath = filePath.replace(/^~\//, `${homePath}/`)
+  
+  // If path is relative, resolve against workspace
+  const fullPath = path.isAbsolute(filePath) 
+    ? path.resolve(filePath)
+    : path.resolve(workspacePath, filePath)
+  
+  // Security: only allow /home/ubuntu subtree
+  if (!fullPath.startsWith(homePath)) {
     return NextResponse.json({ error: 'Invalid path' }, { status: 403 })
   }
   

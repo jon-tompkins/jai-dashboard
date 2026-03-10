@@ -1,0 +1,151 @@
+{
+  "global": {
+    "label": "Global Layer",
+    "description": "Shared across all agents - tools, principles, ways of working",
+    "icon": "🌍",
+    "files": [
+      { "path": "TOOLS.md", "label": "Tools", "loaded": false },
+      { "path": "docs/WORKSPACE-TREE.md", "label": "Workspace Tree", "loaded": false }
+    ]
+  },
+  "coordinator": {
+    "label": "Jai (Coordinator)",
+    "description": "Main agent - orchestrates projects and sub-agents",
+    "icon": "⚡",
+    "systemFiles": {
+      "label": "System Files",
+      "description": "Injected into system prompt at session start",
+      "files": [
+        { "path": "AGENTS.md", "label": "AGENTS.md", "loaded": true },
+        { "path": "SOUL.md", "label": "SOUL.md", "loaded": true },
+        { "path": "USER.md", "label": "USER.md", "loaded": true },
+        { "path": "TOOLS.md", "label": "TOOLS.md", "loaded": true },
+        { "path": "IDENTITY.md", "label": "IDENTITY.md", "loaded": true },
+        { "path": "HEARTBEAT.md", "label": "HEARTBEAT.md", "loaded": true }
+      ]
+    },
+    "contextFiles": {
+      "label": "Context Files",
+      "description": "Read on demand during session",
+      "files": [
+        { "path": "SESSION-STATE.md", "label": "Session State", "loaded": false },
+        { "path": "MEMORY.md", "label": "Long-term Memory", "loaded": false },
+        { "path": "memory/projects.md", "label": "Project Index", "loaded": false },
+        { "path": "kanban/tasks.json", "label": "Kanban Tasks", "loaded": false }
+      ]
+    }
+  },
+  "projects": [
+    {
+      "id": "clawstreet",
+      "label": "Clawstreet",
+      "icon": "🏛️",
+      "path": "~/clawstreet",
+      "description": "AI trading competition platform",
+      "files": [
+        { "path": "~/clawstreet/NORTH-STAR.md", "label": "North Star", "loaded": false },
+        { "path": "~/clawstreet/TEAM.md", "label": "Team", "loaded": false },
+        { "path": "~/clawstreet/TODO.md", "label": "TODO", "loaded": false },
+        { "path": "~/clawstreet/docs/rps-game-spec.md", "label": "RPS Spec", "loaded": false }
+      ],
+      "subAgents": [
+        {
+          "id": "terry",
+          "label": "Terry (CTO)",
+          "icon": "🔧",
+          "files": [
+            { "path": "agents/terry/SOUL.md", "label": "SOUL.md", "loaded": true },
+            { "path": "agents/terry/CONTEXT.md", "label": "CONTEXT.md", "loaded": true }
+          ]
+        },
+        {
+          "id": "mark",
+          "label": "Mark (Marketing)",
+          "icon": "📢",
+          "files": [
+            { "path": "agents/mark/SOUL.md", "label": "SOUL.md", "loaded": true }
+          ]
+        },
+        {
+          "id": "quai",
+          "label": "Quai (QA)",
+          "icon": "🧪",
+          "files": [
+            { "path": "agents/quai/SOUL.md", "label": "SOUL.md", "loaded": true }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "junto",
+      "label": "MyJunto",
+      "icon": "📰",
+      "path": "~/myjunto",
+      "description": "AI-powered newsletters from Twitter",
+      "files": [
+        { "path": "~/myjunto/README.md", "label": "README", "loaded": false },
+        { "path": "memory/projects.md#myjunto", "label": "Project Notes", "loaded": false }
+      ],
+      "subAgents": []
+    },
+    {
+      "id": "research",
+      "label": "Research Team",
+      "icon": "🔬",
+      "path": "agents/",
+      "description": "Scout, Jeb, Ant - trading research pipeline",
+      "files": [
+        { "path": "Agent-Reports/DEEP-DIVE-TEMPLATE.md", "label": "Report Template", "loaded": false }
+      ],
+      "subAgents": [
+        {
+          "id": "scout",
+          "label": "Scout (Analyst)",
+          "icon": "🔭",
+          "files": [
+            { "path": "agents/scout/SOUL.md", "label": "SOUL.md", "loaded": true },
+            { "path": "agents/scout/CONTEXT.md", "label": "CONTEXT.md", "loaded": true },
+            { "path": "agents/scout/sources.md", "label": "Sources", "loaded": false }
+          ]
+        },
+        {
+          "id": "jeb",
+          "label": "Jeb (Fundamentals)",
+          "icon": "📊",
+          "files": [
+            { "path": "agents/jeb/SOUL.md", "label": "SOUL.md", "loaded": true }
+          ]
+        },
+        {
+          "id": "ant",
+          "label": "Ant (Technicals)",
+          "icon": "📈",
+          "files": [
+            { "path": "agents/ant/SOUL.md", "label": "SOUL.md", "loaded": true }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "dashboard",
+      "label": "Dashboard",
+      "icon": "📱",
+      "path": "jai-dashboard/",
+      "description": "This admin interface",
+      "files": [
+        { "path": "jai-dashboard/README.md", "label": "README", "loaded": false }
+      ],
+      "subAgents": []
+    }
+  ],
+  "memory": {
+    "label": "Memory System",
+    "icon": "🧠",
+    "description": "Daily notes, learnings, active tasks",
+    "files": [
+      { "path": "memory/", "label": "Daily Notes", "loaded": false, "isDir": true },
+      { "path": ".learnings/", "label": "Learnings", "loaded": false, "isDir": true },
+      { "path": "memory/active-tasks.md", "label": "Active Tasks", "loaded": false }
+    ]
+  }
+}
