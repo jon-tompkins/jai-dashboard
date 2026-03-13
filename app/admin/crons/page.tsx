@@ -4,11 +4,20 @@ import Link from 'next/link'
 import { automationInventory, byProduct, stats, type AutomationJob } from './automation-data'
 
 const styles = {
-  container: { background: '#0a0a0a', minHeight: '100vh', color: '#e5e5e5', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif' },
-  card: { background: '#0d0d0d', border: '1px solid #262626', borderRadius: '8px', padding: '16px' },
-  btn: { padding: '8px 14px', background: '#171717', border: '1px solid #262626', borderRadius: '4px', color: '#e5e5e5', cursor: 'pointer', fontSize: '13px' },
-  btnActive: { padding: '8px 14px', background: '#171717', border: '1px solid #404040', borderRadius: '4px', color: '#fff', cursor: 'pointer', fontSize: '13px' },
-  btnSmall: { padding: '4px 8px', background: '#171717', border: '1px solid #262626', borderRadius: '4px', color: '#e5e5e5', cursor: 'pointer', fontSize: '11px' },
+  // Base (from style guide)
+  container: { background: '#0a0a0a', minHeight: '100vh', color: '#ffffff', fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' },
+  card: { background: '#1a1a1a', border: '1px solid #262626', padding: '16px' },
+  
+  // Buttons
+  btn: { padding: '8px 16px', background: 'transparent', border: '1px solid #404040', color: '#ffffff', cursor: 'pointer', fontSize: '13px', fontWeight: 500 },
+  btnActive: { padding: '8px 16px', background: '#1a1a1a', border: '1px solid #f97316', color: '#ffffff', cursor: 'pointer', fontSize: '13px', fontWeight: 500 },
+  btnPrimary: { padding: '8px 16px', background: '#166534', border: 'none', color: '#ffffff', cursor: 'pointer', fontSize: '13px', fontWeight: 600 },
+  btnSmall: { padding: '4px 8px', background: 'transparent', border: '1px solid #262626', color: '#a3a3a3', cursor: 'pointer', fontSize: '11px', fontWeight: 500 },
+  
+  // Text
+  textPrimary: { color: '#ffffff' },
+  textSecondary: { color: '#a3a3a3' },
+  textMuted: { color: '#525252' },
 }
 
 function formatTime(ms: number | undefined): string {
@@ -53,7 +62,7 @@ function formatCron(expr: string): string {
 function AutomationCard({ job }: { job: AutomationJob }) {
   const statusColors: Record<string, string> = {
     'active': '#22c55e',
-    'disabled': '#737373',
+    'disabled': '#525252',
     'ready': '#3b82f6',
     'needs-migration': '#ef4444',
     'needs-review': '#f59e0b',
@@ -68,45 +77,72 @@ function AutomationCard({ job }: { job: AutomationJob }) {
   
   return (
     <div style={{ 
-      ...styles.card, 
-      padding: '12px',
+      ...styles.card,
       borderLeft: `3px solid ${statusColors[job.status]}`,
-      opacity: job.status === 'disabled' ? 0.6 : 1
+      opacity: job.status === 'disabled' ? 0.5 : 1,
+      transition: 'all 0.2s',
     }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '6px' }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: '13px', fontWeight: 500, marginBottom: '2px' }}>
+      {/* Header: Icon + Name + Badges */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: '14px', fontWeight: 600, color: '#ffffff', marginBottom: '4px' }}>
             {typeIcons[job.type]} {job.name}
           </div>
-          <div style={{ fontSize: '10px', color: '#525252', fontFamily: 'monospace', marginBottom: '6px' }}>
+          <div style={{ fontSize: '11px', color: '#525252', fontFamily: 'monospace' }}>
             {job.schedule || 'On-demand'}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexShrink: 0 }}>
-          {!job.usesAgent && (
-            <span style={{ fontSize: '9px', padding: '2px 6px', background: '#166534', borderRadius: '3px', color: '#fff', fontWeight: 500 }}>
+        <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexShrink: 0, marginLeft: '8px' }}>
+          {!job.usesAgent ? (
+            <span style={{ 
+              fontSize: '10px', 
+              padding: '3px 8px', 
+              background: '#166534', 
+              color: '#ffffff', 
+              fontWeight: 600,
+              letterSpacing: '0.5px'
+            }}>
               APP
             </span>
-          )}
-          {job.usesAgent && (
-            <span style={{ fontSize: '9px', padding: '2px 6px', background: '#1e3a8a', borderRadius: '3px', color: '#fff', fontWeight: 500 }}>
+          ) : (
+            <span style={{ 
+              fontSize: '10px', 
+              padding: '3px 8px', 
+              background: '#1e3a8a', 
+              color: '#ffffff', 
+              fontWeight: 600,
+              letterSpacing: '0.5px'
+            }}>
               AGENT
             </span>
           )}
         </div>
       </div>
       
-      <div style={{ fontSize: '11px', color: '#a3a3a3', marginBottom: '8px', lineHeight: '1.4' }}>
+      {/* Description */}
+      <div style={{ fontSize: '12px', color: '#a3a3a3', marginBottom: '12px', lineHeight: '1.5' }}>
         {job.description}
       </div>
       
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '10px' }}>
+      {/* Footer: Recommendation + Cost */}
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        paddingTop: '12px',
+        borderTop: '1px solid #1f1f1f',
+        fontSize: '11px'
+      }}>
         <span style={{ color: '#737373' }}>
           {job.recommendation}
         </span>
         {job.costPerDay !== undefined && job.costPerDay > 0 && (
-          <span style={{ color: '#22c55e', fontWeight: 500 }}>
-            ${job.costPerDay}/day
+          <span style={{ 
+            color: '#22c55e', 
+            fontWeight: 600,
+            fontFamily: 'monospace'
+          }}>
+            ${job.costPerDay.toFixed(2)}/day
           </span>
         )}
       </div>
@@ -285,41 +321,76 @@ export default function CronsPage() {
           </h2>
           
           {/* Stats Summary */}
-          <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', flexWrap: 'wrap' }}>
-            <div style={{ ...styles.card, padding: '12px 16px', display: 'inline-flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ fontSize: '11px', color: '#737373' }}>Total Jobs</span>
-              <span style={{ fontSize: '20px', fontWeight: 600 }}>{stats.total}</span>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px', marginBottom: '32px' }}>
+            <div style={{ ...styles.card, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontSize: '10px', color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>
+                Total Jobs
+              </span>
+              <span style={{ fontSize: '24px', fontWeight: 700, color: '#ffffff', fontFamily: 'monospace' }}>
+                {stats.total}
+              </span>
             </div>
-            <div style={{ ...styles.card, padding: '12px 16px', display: 'inline-flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ fontSize: '11px', color: '#737373' }}>Active</span>
-              <span style={{ fontSize: '20px', fontWeight: 600, color: '#22c55e' }}>{stats.active}</span>
+            <div style={{ ...styles.card, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontSize: '10px', color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>
+                Active
+              </span>
+              <span style={{ fontSize: '24px', fontWeight: 700, color: '#22c55e', fontFamily: 'monospace' }}>
+                {stats.active}
+              </span>
             </div>
-            <div style={{ ...styles.card, padding: '12px 16px', display: 'inline-flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ fontSize: '11px', color: '#737373' }}>App-Level (No Agent)</span>
-              <span style={{ fontSize: '20px', fontWeight: 600, color: '#22c55e' }}>{stats.appLevel}</span>
+            <div style={{ ...styles.card, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontSize: '10px', color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>
+                App-Level
+              </span>
+              <span style={{ fontSize: '24px', fontWeight: 700, color: '#22c55e', fontFamily: 'monospace' }}>
+                {stats.appLevel}
+              </span>
             </div>
-            <div style={{ ...styles.card, padding: '12px 16px', display: 'inline-flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ fontSize: '11px', color: '#737373' }}>Agent-Based</span>
-              <span style={{ fontSize: '20px', fontWeight: 600, color: '#3b82f6' }}>{stats.agentBased}</span>
+            <div style={{ ...styles.card, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontSize: '10px', color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>
+                Agent-Based
+              </span>
+              <span style={{ fontSize: '24px', fontWeight: 700, color: '#3b82f6', fontFamily: 'monospace' }}>
+                {stats.agentBased}
+              </span>
             </div>
-            <div style={{ ...styles.card, padding: '12px 16px', display: 'inline-flex', flexDirection: 'column', gap: '4px' }}>
-              <span style={{ fontSize: '11px', color: '#737373' }}>Daily Cost</span>
-              <span style={{ fontSize: '20px', fontWeight: 600, color: '#22c55e' }}>${stats.totalCostPerDay.toFixed(2)}</span>
+            <div style={{ ...styles.card, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontSize: '10px', color: '#525252', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>
+                Daily Cost
+              </span>
+              <span style={{ fontSize: '24px', fontWeight: 700, color: '#22c55e', fontFamily: 'monospace' }}>
+                ${stats.totalCostPerDay.toFixed(2)}
+              </span>
             </div>
           </div>
 
           {/* Jobs by Product */}
           {Object.entries(byProduct).map(([product, productJobs]) => (
-            <div key={product} style={{ marginBottom: '24px' }}>
-              <h3 style={{ fontSize: '14px', fontWeight: 600, marginBottom: '12px', color: '#e5e5e5' }}>
-                {product === 'MyJunto' && '📰'} 
-                {product === 'Clawstreet' && '🎮'} 
-                {product === 'Portfolio' && '💼'} 
-                {product === 'Marketing' && '📢'} 
-                {product === 'System' && '⚙️'} 
-                {' '}{product}
-              </h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: '8px' }}>
+            <div key={product} style={{ marginBottom: '32px' }}>
+              <div style={{ 
+                fontSize: '11px', 
+                fontWeight: 600, 
+                textTransform: 'uppercase', 
+                letterSpacing: '0.5px', 
+                color: '#525252',
+                paddingBottom: '12px',
+                borderBottom: '1px solid #1f1f1f',
+                marginBottom: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <span style={{ fontSize: '16px' }}>
+                  {product === 'MyJunto' && '📰'} 
+                  {product === 'Clawstreet' && '🎮'} 
+                  {product === 'Portfolio' && '💼'} 
+                  {product === 'Marketing' && '📢'} 
+                  {product === 'System' && '⚙️'}
+                </span>
+                <span>{product}</span>
+                <span style={{ color: '#333333', marginLeft: '4px' }}>({productJobs.length})</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: '12px' }}>
                 {productJobs.map(job => (
                   <AutomationCard key={job.id} job={job} />
                 ))}
