@@ -240,7 +240,9 @@ export async function PATCH(request: NextRequest) {
     }
     
     if (newLabels.length > 0) {
-      updateData.labels = [...new Set(newLabels)];
+      // Remove duplicates using filter
+      const uniqueLabels = newLabels.filter((value, index, self) => self.indexOf(value) === index);
+      updateData.labels = uniqueLabels;
     }
     
     if (updates.title) updateData.title = updates.title;
