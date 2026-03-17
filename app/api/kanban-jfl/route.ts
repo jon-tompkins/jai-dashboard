@@ -56,8 +56,13 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const assignee = searchParams.get('assignee');
     
-    // Fetch issues from GitHub
-    let issues = await githubApi('/issues?state=open&labels=jfl/backlog,jfl/ready,jfl/in-progress,jfl/done&per_page=100');
+    // Fetch all open issues with any jfl label (GitHub API uses AND for multiple labels, so fetch all and filter)
+    let issues = await githubApi('/issues?state=open&per_page=100');
+    
+    // Filter to only issues with jfl/ labels
+    issues = issues.filter((issue: any) => 
+      issue.labels?.some((l: any) => l.name.startsWith('jfl/'))
+    );
     
     // Transform to kanban format
     let tasks = issues.map((issue: any) => {
