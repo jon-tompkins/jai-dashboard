@@ -274,6 +274,9 @@ export default function AdminPage() {
             <Link href="/admin/kanban" style={{ ...styles.btn, textDecoration: 'none', color: '#737373' }}>
               📋 Kanban
             </Link>
+            <Link href="/admin/jfl-kanban" style={{ ...styles.btn, textDecoration: 'none', color: '#737373' }}>
+              🤖 JFL Hub
+            </Link>
             <Link href="/admin/crons" style={{ ...styles.btn, textDecoration: 'none', color: '#737373' }}>
               ⏰ Crons
             </Link>
