@@ -3,7 +3,9 @@ import { NextRequest, NextResponse } from 'next/server';
 // GitHub API configuration
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN || process.env.GITHUB_PAT;
 const REPO_OWNER = 'jon-tompkins';
-const REPO_NAME = 'clawd';
+
+// Multi-repo support: all repos that use JFL kanban
+const JFL_REPOS = ['junto', 'lobber', 'clawd'];
 
 // JFL Kanban column labels
 const COLUMNS = {
@@ -29,8 +31,9 @@ const LABEL_TO_COLUMN: Record<string, string> = {
 };
 
 // GitHub API helper
-async function githubApi(path: string, options: RequestInit = {}) {
-  const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}${path}`;
+async function githubApi(path: string, options: RequestInit = {}, repo?: string) {
+  const repoName = repo || JFL_REPOS[0];
+  const url = `https://api.github.com/repos/${REPO_OWNER}/${repoName}${path}`;
   const response = await fetch(url, {
     ...options,
     headers: {
@@ -43,7 +46,7 @@ async function githubApi(path: string, options: RequestInit = {}) {
   
   if (!response.ok) {
     const error = await response.text();
-    throw new Error(`GitHub API error: ${response.status} - ${error}`);
+    throw new Error(`GitHub API error (${repoName}): ${response.status} - ${error}`);
   }
   
   return response.json();
@@ -56,13 +59,24 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const assignee = searchParams.get('assignee');
     
-    // Fetch all open issues with any jfl label (GitHub API uses AND for multiple labels, so fetch all and filter)
-    let issues = await githubApi('/issues?state=open&per_page=100');
+    // Fetch issues from all JFL repos, optionally filter by repo query param
+    const repoFilter = searchParams.get('repo');
+    const repos = repoFilter ? [repoFilter] : JFL_REPOS;
     
-    // Filter to only issues with jfl/ labels
-    issues = issues.filter((issue: any) => 
-      issue.labels?.some((l: any) => l.name.startsWith('jfl/'))
-    );
+    let issues: any[] = [];
+    for (const repo of repos) {
+      try {
+        const repoIssues = await githubApi('/issues?state=open&per_page=100', {}, repo);
+        // Tag each issue with its source repo
+        const tagged = repoIssues
+          .filter((issue: any) => issue.labels?.some((l: any) => l.name.startsWith('jfl/')))
+          .map((issue: any) => ({ ...issue, _repo: repo }));
+        issues.push(...tagged);
+      } catch (e) {
+        // Skip repos that fail (e.g. no access)
+        console.warn(`Skipped repo ${repo}:`, e);
+      }
+    }
     
     // Transform to kanban format
     let tasks = issues.map((issue: any) => {
@@ -87,7 +101,9 @@ export async function GET(request: NextRequest) {
       )?.name || 'medium';
       
       return {
-        id: issue.number.toString(),
+        id: `${issue._repo || 'unknown'}-${issue.number}`,
+        number: issue.number,
+        repo: issue._repo || 'unknown',
         title: issue.title,
         description: issue.body || '',
         status,
