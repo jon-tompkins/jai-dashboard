@@ -6,24 +6,11 @@ import { sampleListings, filterListings, sortListings, calculateMaintenanceScore
 export default function Home() {
   const [filters, setFilters] = useState<Record<string, string>>({})
   const [sort, setSort] = useState('price_asc')
-  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
-    location: true,
-    price: false,
-    size: false,
-    fees: false,
-    building: false,
-    maintenance: false,
-  })
-  
   const filtered = useMemo(() => {
     let result = filterListings(sampleListings, filters)
     result = sortListings(result, sort)
     return result
   }, [filters, sort])
-  
-  const toggleGroup = (group: string) => {
-    setExpandedGroups(prev => ({ ...prev, [group]: !prev[group] }))
-  }
   
   const updateFilter = (key: string, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }))
@@ -65,7 +52,7 @@ export default function Home() {
         <aside className="w-72 flex-shrink-0">
           <div className="space-y-1">
             {/* Location */}
-            <FilterSection title="Location" expanded={expandedGroups.location} onToggle={() => toggleGroup('location')}>
+            <FilterSection title="Location">
               <div className="space-y-3">
                 <div>
                   <label className="text-xs text-zinc-500 uppercase tracking-wider mb-1.5 block">Borough</label>
@@ -96,7 +83,7 @@ export default function Home() {
             </FilterSection>
             
             {/* Price */}
-            <FilterSection title="Price" expanded={expandedGroups.price} onToggle={() => toggleGroup('price')}>
+            <FilterSection title="Price">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-zinc-500 uppercase tracking-wider mb-1.5 block">Min</label>
@@ -122,7 +109,7 @@ export default function Home() {
             </FilterSection>
             
             {/* Size */}
-            <FilterSection title="Size" expanded={expandedGroups.size} onToggle={() => toggleGroup('size')}>
+            <FilterSection title="Size">
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -169,7 +156,7 @@ export default function Home() {
             </FilterSection>
             
             {/* Property Type */}
-            <FilterSection title="Property Type" expanded={expandedGroups.building} onToggle={() => toggleGroup('building')}>
+            <FilterSection title="Property Type">
               <div className="space-y-3">
                 <div>
                   <label className="text-xs text-zinc-500 uppercase tracking-wider mb-1.5 block">Type</label>
@@ -209,7 +196,7 @@ export default function Home() {
             </FilterSection>
             
             {/* Monthly Fees */}
-            <FilterSection title="Monthly Fees" expanded={expandedGroups.fees} onToggle={() => toggleGroup('fees')}>
+            <FilterSection title="Monthly Fees">
               <div>
                 <label className="text-xs text-zinc-500 uppercase tracking-wider mb-1.5 block">Max Monthly</label>
                 <input
@@ -224,7 +211,7 @@ export default function Home() {
             </FilterSection>
             
             {/* Maintenance Flags */}
-            <FilterSection title="Maintenance Score" expanded={expandedGroups.maintenance} onToggle={() => toggleGroup('maintenance')}>
+            <FilterSection title="Maintenance Score">
               <label className="flex items-start gap-3 cursor-pointer group">
                 <input
                   type="checkbox"
@@ -384,23 +371,15 @@ export default function Home() {
   );
 }
 
-// Filter section component
-function FilterSection({ title, expanded, onToggle, children }: { 
-  title: string; 
-  expanded: boolean; 
-  onToggle: () => void;
+// Filter section component - simplified, always show content
+function FilterSection({ title, children }: { 
+  title: string;
   children: React.ReactNode 
 }) {
   return (
-    <div className="border border-zinc-800 rounded-lg bg-zinc-900/50">
-      <button 
-        onClick={onToggle}
-        className="flex items-center justify-between w-full px-4 py-3 text-sm font-medium text-zinc-300 hover:text-white transition-colors"
-      >
-        {title}
-        <span className="text-zinc-600">{expanded ? '−' : '+'}</span>
-      </button>
-      {expanded && <div className="px-4 pb-4">{children}</div>}
+    <div className="border border-zinc-800 rounded-lg bg-zinc-900/50 p-4 mb-3">
+      <h3 className="text-sm font-medium text-zinc-300 mb-3">{title}</h3>
+      {children}
     </div>
   );
 }
