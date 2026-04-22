@@ -22,7 +22,8 @@ This file tracks what Jeb has "read" — the primary sources that inform his thi
 ## Queued 📚
 
 ### Warren Buffett
-- Letters 1982-2024 (annual)
+- [x] 1982 — Economic earnings vs. accounting earnings, insurance commodity trap, equity issuance discipline, six acquisition criteria
+- Letters 1983-2024 (annual)
 - "The Essays of Warren Buffett" (compilation)
 
 ### Charlie Munger
