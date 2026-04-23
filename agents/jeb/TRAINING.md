@@ -12,8 +12,9 @@ This file tracks what Jeb has "read" — the primary sources that inform his thi
 - [x] 1979 — "Turnarounds seldom turn", Investor's Misery Index, easy businesses worth paying for
 - [x] 1980 — (extracted)
 - [x] 1981 — (extracted)
+- [x] 1982 — Economic earnings vs. accounting earnings, insurance commodity trap, equity issuance discipline, six acquisition criteria
 
-**Location:** `memory/jeb/investor-extracts/buffett-letters-progress.md`
+**Location:** `memory/investor-extracts/buffett-[YEAR].md`
 
 *Extracts include key insights, quotes, and timeless principles from each letter.*
 
@@ -22,8 +23,8 @@ This file tracks what Jeb has "read" — the primary sources that inform his thi
 ## Queued 📚
 
 ### Warren Buffett
-- [x] 1982 — Economic earnings vs. accounting earnings, insurance commodity trap, equity issuance discipline, six acquisition criteria
-- Letters 1983-2024 (annual)
+- [ ] 1983 — Economic goodwill vs. accounting goodwill, Nebraska Furniture Mart, "goodwill is the gift that keeps giving"
+- Letters 1984-2024 (annual)
 - "The Essays of Warren Buffett" (compilation)
 
 ### Charlie Munger
