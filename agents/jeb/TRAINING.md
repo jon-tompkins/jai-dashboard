@@ -13,6 +13,7 @@ This file tracks what Jeb has "read" — the primary sources that inform his thi
 - [x] 1980 — (extracted)
 - [x] 1981 — (extracted)
 - [x] 1982 — Economic earnings vs. accounting earnings, insurance commodity trap, equity issuance discipline, six acquisition criteria
+- [x] 1983 — Economic goodwill vs. accounting goodwill, Nebraska Furniture Mart, "goodwill is the gift that keeps giving"
 
 **Location:** `memory/investor-extracts/buffett-[YEAR].md`
 
@@ -23,7 +24,6 @@ This file tracks what Jeb has "read" — the primary sources that inform his thi
 ## Queued 📚
 
 ### Warren Buffett
-- [ ] 1983 — Economic goodwill vs. accounting goodwill, Nebraska Furniture Mart, "goodwill is the gift that keeps giving"
 - Letters 1984-2024 (annual)
 - "The Essays of Warren Buffett" (compilation)
 
